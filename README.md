@@ -21,4 +21,4 @@ Quick info:
   
   > Integrate real time stock market data to overlay with mention data
   
-  > Plug into deep learning robo investor
+  > Plug in to deep learning robo investor
