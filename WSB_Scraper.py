@@ -143,7 +143,7 @@ def storage_manager(tickers, set, sub):
 
         file.close()
 
-        write_to_excel(tickers, set, sub.display_name)
+        #write_to_excel(tickers, set, sub.display_name)
         write_to_csv(tickers, set, sub.display_name)
 
 
