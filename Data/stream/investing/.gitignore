@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Scraper Data
+*.csv
+
 # C extensions
 *.so
 

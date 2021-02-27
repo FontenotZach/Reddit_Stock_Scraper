@@ -5,6 +5,11 @@ __pycache__/
 
 # Scraper Data
 *.csv
+*.xlsx
+*.xls
+
+# Scraper Data
+*.csv
 
 # C extensions
 *.so

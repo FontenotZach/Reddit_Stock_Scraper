@@ -14,8 +14,13 @@ import pathlib
 import _thread
 import signal
 import sys
+from prawcore.exceptions import PrawcoreException
 
-multiprocessing.set_start_method('spawn')
+reddit = praw.Reddit(
+     client_id="KmWrNZao9rWwSA",
+     client_secret="V5mH25xahLgeUakjH6Y_xRxQ3fmKSA",
+     user_agent="My Reddit Scraper 1.0 by fontenotza"
+ )
 
 
 
@@ -23,12 +28,12 @@ def stream_scraper_reader(q, sub):
 
     while True:
         print('SSR ', _thread.get_native_id(), '\t| ', end='')
-        print('Reading comment stream from ' + sub)
+        print('Reading comment stream from ' + sub.display_name)
         comments_processed = 0
         tickers = []
 
         print('SSR ', _thread.get_native_id(), '\t| ', end='')
-        print(str(len(q)) + ' '+  sub + ' comments collected')
+        print(str(len(q)) + ' '+  sub.display_name + ' comments collected')
 
         while True:
 
@@ -57,9 +62,9 @@ def stream_scraper_reader(q, sub):
 
         tickers.sort(key = attrgetter('score'), reverse = True)
         print('SSR ', _thread.get_native_id(), '\t| ', end='')
-        print('Processed ' + str(comments_processed) + ' stream comments from ' + sub)
+        print('Processed ' + str(comments_processed) + ' stream comments from ' + sub.display_name)
         print('SSR ', _thread.get_native_id(), '\t| ', end='')
-        print('Writing out stream results from ' + sub )
+        print('Writing out stream results from ' + sub.display_name )
 
         storage_manager(tickers, 'stream', sub)
         print('SSR ', _thread.get_native_id(), '\t| ', end='')
@@ -67,13 +72,13 @@ def stream_scraper_reader(q, sub):
         wait_for_next_hour()
 
 
-def scrape_hot_posts(reddit, num, sub):
+def scrape_hot_posts(num, sub):
 
     while True:
         hot_posts = []
         print('SH ', _thread.get_native_id(), '\t| ', end='')
-        print('Compiling Hottest ' + str(num) + ' ' + sub + ' posts')
-        for submission in reddit.subreddit(sub).hot(limit=num):
+        print('Compiling Hottest ' + str(num) + ' ' + sub.display_name + ' posts')
+        for submission in sub.hot(limit=num):
             hot_posts.append(submission)
 
         tickers = []
@@ -99,9 +104,9 @@ def scrape_hot_posts(reddit, num, sub):
 
         tickers.sort(key = attrgetter('score'), reverse = True)
         print('SH ', _thread.get_native_id(), '\t| ', end='')
-        print('Processed ' + str(comments_processed) + ' hot comments from ' + sub)
+        print('Processed ' + str(comments_processed) + ' hot comments from ' + sub.display_name)
         print('SH ', _thread.get_native_id(), '\t| ', end='')
-        print('Writing out hot results from ' + sub)
+        print('Writing out hot results from ' + sub.display_name)
         storage_manager(tickers, 'hot', sub)
 
         print('SH ', _thread.get_native_id(), '\t| ', end='')
@@ -111,7 +116,7 @@ def scrape_hot_posts(reddit, num, sub):
 def storage_manager(tickers, set, sub):
 
     for ticker in tickers:
-        file_name = 'Data\\' + set + '\\' + sub + '\\' + ticker.symbol + '_data_' + set + '.csv'
+        file_name = 'Data\\' + set + '\\' + sub.display_name + '\\' + ticker.symbol + '_data_' + set + '.csv'
         file_path = pathlib.Path(file_name)
         if file_path.exists():
             file = open(file_name, 'r')
@@ -138,20 +143,24 @@ def storage_manager(tickers, set, sub):
 
         file.close()
 
-        write_to_excel(tickers, set, sub)
-        write_to_csv(tickers, set, sub)
+        write_to_excel(tickers, set, sub.display_name)
+        write_to_csv(tickers, set, sub.display_name)
 
 
 def stream_scraper_writer(q, stream, sub):
 
-    t_report = _thread.start_new_thread(queue_report, (q, sub,))
+    t_report = _thread.start_new_thread(queue_report, (q, sub.display_name,))
     print('SSW ', _thread.get_native_id(), '\t| ', end='')
-    print(sub + ' stream up and running')
-    for r_comment in stream:
-        if r_comment is None:
-            time.sleep(1)
-        else:
-            q.append(r_comment)
+    print(sub.display_name + ' stream up and running')
+    while True:
+        try:
+            for r_comment in stream:
+                if r_comment is None:
+                    time.sleep(3)
+                else:
+                    q.append(r_comment)
+        except PrawcoreException:
+            stream = get_stream(sub)
 
 
 def queue_report(q, sub):
@@ -178,33 +187,30 @@ def idle():
         time.sleep(100)
         #check for errors
 
-if __name__ == '__main__':
+def get_stream(sub):
+    return sub.stream.comments(skip_existing=True)
 
-    reddit = praw.Reddit(
-         client_id="KmWrNZao9rWwSA",
-         client_secret="V5mH25xahLgeUakjH6Y_xRxQ3fmKSA",
-         user_agent="My Reddit Scraper 1.0 by fontenotza"
-     )
+if __name__ == '__main__':
 
     wsb = reddit.subreddit('wallstreetbets')
     inv = reddit.subreddit('investing')
 
-    wsb_stream = wsb.stream.comments(skip_existing=True)
-    inv_stream = inv.stream.comments(skip_existing=True)
+    wsb_stream = get_stream(wsb)
+    inv_stream = get_stream(inv)
 
     wsb_comment_queue = []
     inv_comment_queue = []
 
     print('Starting threads')
 
-    t1 = _thread.start_new_thread(stream_scraper_writer, (wsb_comment_queue, wsb_stream, 'wallstreetbets',))
-    t2 = _thread.start_new_thread(stream_scraper_writer, (inv_comment_queue, inv_stream, 'investing',))
+    t1 = _thread.start_new_thread(stream_scraper_writer, (wsb_comment_queue, wsb_stream, wsb,))
+    t2 = _thread.start_new_thread(stream_scraper_writer, (inv_comment_queue, inv_stream, inv,))
 
-    t3 = _thread.start_new_thread(scrape_hot_posts, (reddit, 30, 'wallstreetbets',))
-    t4 = _thread.start_new_thread(scrape_hot_posts, (reddit, 30, 'investing',))
+    t3 = _thread.start_new_thread(scrape_hot_posts, (30, wsb,))
+    t4 = _thread.start_new_thread(scrape_hot_posts, (30, inv,))
 
-    t5 = _thread.start_new_thread(stream_scraper_reader, (wsb_comment_queue, 'wallstreetbets',))
-    t6 = _thread.start_new_thread(stream_scraper_reader, (inv_comment_queue, 'investing',))
+    t5 = _thread.start_new_thread(stream_scraper_reader, (wsb_comment_queue, wsb,))
+    t6 = _thread.start_new_thread(stream_scraper_reader, (inv_comment_queue, inv,))
 
 
     idle()
