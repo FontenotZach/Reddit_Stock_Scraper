@@ -5,6 +5,9 @@ import datetime
 import os
 import glob
 from Ticker import *
+from operator import attrgetter
+import statistics
+
 
 # Trending_Module.py
 # Seperate process from scraper which will be ran as needed
@@ -14,34 +17,55 @@ from Ticker import *
 
 # inout: ticker and list of hourly scraper data e.g. {4, 2, 5, 14, 20, 44...}
 # output: calulcate trending score and enter into ticker.trending_score attribute
-def calc_trending_score(ticker, data):
-    # logic to calculate trending score
-    ticker.trending_score = -1
+def calc_trending_score(ticker, x):
+    y = []
+    for i in range(0, len(x)):
+        y.append(i)
 
+    x_mean = mean(x)
+    y_mean = mean(y)
+    covari = covariance(x, x_mean, y, y_mean)
+    vari = statistics.variance(x)
+    m =  covari / vari
+    return m
+
+# Calculate the mean value of a list of numbers
+def mean(values):
+	return sum(values) / float(len(values))
+
+# Calculate the variance of a list of numbers
+def variance(values, mean):
+	return sum([(x - mean)**2 for x in values])
+
+# Calculate covariance between x and y
+def covariance(x, mean_x, y, mean_y):
+	covar = 0.0
+	for i in range(len(x)):
+		covar += (x[i] - mean_x) * (y[i] - mean_y)
+	return covar
 
 if __name__ == '__main__':
 
     # Test with investing stream data for lighter load
-    path_wsb = '.\\Data\\stream\\wallstreetbets'
-    path_inv = '.\\Data\\stream\\investing'
+    path_wsb = './Data/stream/wallstreetbets'
+    path_inv = './Data/stream/investing'
 
     tickers = []
 
     for filename in glob.glob(os.path.join(path_wsb, '*.csv')):
         with open(os.path.join(os.getcwd(), filename), 'r') as f:
 
-            symbol = filename.split('\\')[4].split('_')[0]
+            symbol = filename.split('/')[4].split('_')[0]
             ticker = Ticker(symbol)
 
-            data = pd.read_csv(f)
+            data = np.loadtxt(f)
+            trending_score = calc_trending_score(ticker, data)
 
-            calc_trending_score(ticker, data)
-
-            result = (ticker.symbol, ticker.trending_score)
+            result = (ticker.symbol, trending_score)
 
             tickers.append(result)
 
-    tickers.sort(key = attrgetter('trending_score'), reverse = True)
+    tickers.sort(key=lambda x: x[1], reverse = True)
     headers = ['symbol', 'trending score']
     df = pd.DataFrame(tickers, columns=headers)
-    df.to_csv('Data\\trending.csv', index=False)
+    df.to_csv('Data/trending.csv', index=False)

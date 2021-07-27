@@ -1,4 +1,4 @@
-import praw
+import praw     # reddit API
 from Util import *
 from operator import attrgetter
 import time
@@ -16,6 +16,7 @@ import signal
 import sys
 from prawcore.exceptions import PrawcoreException
 
+# setup Reddit instance
 reddit = praw.Reddit(
      client_id="KmWrNZao9rWwSA",
      client_secret="V5mH25xahLgeUakjH6Y_xRxQ3fmKSA",
@@ -23,7 +24,13 @@ reddit = praw.Reddit(
  )
 
 
-
+# ////////////////////////////////////////////////////////////////
+#   Method: stream_scraper_reader
+#   Purpose: Collect live reddit comments and pass them to queue
+#   Inputs:
+#           'q' - ref to comment queue
+#           'sub' - the Subreddit being scraped
+# ////////////////////////////////////////////////////////////////
 def stream_scraper_reader(q, sub):
 
     while True:
@@ -72,6 +79,13 @@ def stream_scraper_reader(q, sub):
         wait_for_next_hour()
 
 
+# ////////////////////////////////////////////////////////////////
+#   Method: scrape_hot_posts
+#   Purpose: Collects comments from hottest Subreddit posts
+#   Inputs:
+#           'num' - the number of posts to scrape
+#           'sub' - the Subreddit being scraped
+# ////////////////////////////////////////////////////////////////
 def scrape_hot_posts(num, sub):
 
     while True:
@@ -113,10 +127,19 @@ def scrape_hot_posts(num, sub):
         print('Waiting...')
         wait_for_next_hour()
 
+# ////////////////////////////////////////////////////////////////
+#   Method: storage_manager
+#   Purpose: Manages file output
+#   Inputs:
+#           'tickers' - list of scraped tickers
+#           'set' - the set the comments belong to
+#               > TODO: convert to enum
+#           'sub' - the Subreddit being scraped
+# ////////////////////////////////////////////////////////////////
 def storage_manager(tickers, set, sub):
 
     for ticker in tickers:
-        file_name = 'Data\\' + set + '\\' + sub.display_name + '\\' + ticker.symbol + '_data_' + set + '.csv'
+        file_name = 'Data/' + set + '/' + sub.display_name + '/' + ticker.symbol + '_data_' + set + '.csv'
         file_path = pathlib.Path(file_name)
         if file_path.exists():
             file = open(file_name, 'r')
@@ -147,6 +170,14 @@ def storage_manager(tickers, set, sub):
         write_to_csv(tickers, set, sub.display_name)
 
 
+# ////////////////////////////////////////////////////////////////
+#   Method: stream_scraper_writer
+#   Purpose: Processes queue of streamed comments
+#   Inputs:
+#           'q' - ref to comment queue
+#           'stream' - the praw comment stream
+#           'sub' - the Subreddit being scraped
+# ////////////////////////////////////////////////////////////////
 def stream_scraper_writer(q, stream, sub):
 
     t_report = _thread.start_new_thread(queue_report, (q, sub.display_name,))
@@ -162,7 +193,13 @@ def stream_scraper_writer(q, stream, sub):
         except PrawcoreException:
             stream = get_stream(sub)
 
-
+# ////////////////////////////////////////////////////////////////
+#   Method: stream_scraper_reader
+#   Purpose: Collect live reddit comments and pass them to queue
+#   Inputs:
+#           'q' - ref to comment queue
+#           'sub' - the Subreddit being scraped
+# ////////////////////////////////////////////////////////////////
 def queue_report(q, sub):
 
     while True:
@@ -170,8 +207,10 @@ def queue_report(q, sub):
         print('SSW ', _thread.get_native_id(), '\t| ', end='')
         print(str(len(q)) + ' ' + sub + ' comments currently in stream queue')
 
-
-
+# ////////////////////////////////////////////////////////////////
+#   Method: signal_handler
+#   Purpose: Handles escapes
+# ////////////////////////////////////////////////////////////////
 def signal_handler(sig, frame):
     print('Abort detected.  Do you wish to quit?  Y/N')
     response = input()
@@ -180,6 +219,10 @@ def signal_handler(sig, frame):
     print('Abort aborted')
     idle()
 
+# ////////////////////////////////////////////////////////////////
+#   Method: idle
+#   Purpose: Parent thread waiting and periodically error checking
+# ////////////////////////////////////////////////////////////////
 def idle():
     print('Parent: Idle')
     signal.signal(signal.SIGINT, signal_handler)
@@ -187,9 +230,19 @@ def idle():
         time.sleep(100)
         #check for errors
 
+# ////////////////////////////////////////////////////////////////
+#   Method: get_stream
+#   Purpose: Returns instance of Subreddit stream
+#   Inputs:
+#           'sub' - the Subreddit being scraped
+# ////////////////////////////////////////////////////////////////
 def get_stream(sub):
     return sub.stream.comments(skip_existing=True)
 
+# ////////////////////////////////////////////////////////////////
+#   Method: __main__
+#   Purpose: Starting point
+# ////////////////////////////////////////////////////////////////
 if __name__ == '__main__':
 
     wsb = reddit.subreddit('wallstreetbets')

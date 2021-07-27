@@ -31,12 +31,13 @@ def comment_score(comment):
 
     remove_links(comment)
 
-    #prcoess removed tickers here
-
     if check_all_capitalized(comment):
         return
 
     clean_comment(comment)
+
+    removed_symbol_present = check_removed(comment)
+
     # extract symbols
     symbols_present = extract_symbols(comment)
     # calulcate scores
@@ -45,10 +46,26 @@ def comment_score(comment):
         ticker.score = score
     return symbols_present
 
-    # stock_ticker_pattern = "[$][A-Za-z][\S]*"
+
+def check_removed(comment):
+
+    symbol_reader = open('removed.txt', 'r')
+    removed_symbols = symbol_reader.readlines()
+
+    symbols_present = []
+
+    for symbol in removed_symbols:
+        symbol = symbol.rstrip()
+        check_symbol = '$' + symbol + ' '
+        if comment.body.find(check_symbol) >= 0:
+            t = Ticker(symbol)
+            symbols_present.append(t)
+
+    return symbols_present
 
 def extract_symbols(comment):
 
+    comment.body = re.sub(r'[$]', '', comment.body)
     symbol_reader = open('symbols.txt', 'r')
     all_symbols = symbol_reader.readlines()
 
@@ -63,12 +80,14 @@ def extract_symbols(comment):
 
     return symbols_present
 
+
+
 def clean_comment(comment):
-    stop_word_reader = open('stopwords.txt', 'r')
-    stop_words = stop_word_reader.readlines()
-    # prescreen with removed regex removed tickers
+    # stop_word_reader = open('stopwords.txt', 'r')
+    # stop_words = stop_word_reader.readlines()
+
     # remove non letters, words longer than 6 characters, normal words
-    comment.body = re.sub(r'[^\w\s]+', ' ', comment.body)
+    comment.body = re.sub(r'[^$\w\s]+', ' ', comment.body)
     comment.body = re.sub(r'[0-9]', ' ', comment.body)
     comment.body = re.sub(r'\b\w{7,}\b', ' ', comment.body)
     comment.body = re.sub(r'[A-Z]?[\']?[a-z]{1,}', ' ', comment.body)
@@ -135,11 +154,14 @@ def get_time():
 
 def get_index():
     # enter start date here
-    t = datetime.datetime(2021, 2, 6)
+    t = datetime.datetime(2021, 7, 27)
     current_time = get_time()
     dif = current_time - t
 
     total_hours = dif.total_seconds() / 3600
+
+    if total_hours < 0:
+        total_hours = 0
 
     return total_hours
 
@@ -171,7 +193,7 @@ def write_to_csv(tickers, set, sub):
 
 
     df = pd.DataFrame(frame, columns=headers)
-    df.to_csv('Data\\Reddit-Stock-Scraper_'+ sub + '_' + set + '.csv', index=False)
+    df.to_csv('Data/Reddit-Stock-Scraper_'+ sub + '_' + set + '.csv', index=False)
 
 
 def write_to_excel(tickers, set, sub):
@@ -193,4 +215,4 @@ def write_to_excel(tickers, set, sub):
 
     row = 1
 
-    wb.save('Data\\Reddit-Stock-Scraper_'+ sub + '_' + set + '.xls')
+    wb.save('Data/Reddit-Stock-Scraper_'+ sub + '_' + set + '.xls')
