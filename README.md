@@ -1,5 +1,6 @@
 # Reddit_Stock_Scraper
 Scrapes Reddit posts and streams new comments to track market trends.
+Runs on most Linux distibutions
 
 Quick info:
   > Highly threaded reddit scraper which runs indefinitely and collects stock mention data from r/wallstreetbets and r/investing
