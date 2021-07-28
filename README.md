@@ -3,11 +3,11 @@ Scrapes Reddit posts and streams new comments to track market trends.
 Runs on most Linux distibutions
 
 Quick info:
-  > Highly threaded reddit scraper which runs indefinitely and collects stock mention data from r/wallstreetbets and r/investing
+  > Highly threaded reddit scraper which runs indefinitely and collects stock mention data from r/wallstreetbets, r/investing, r/stocks, and r/pennystocks
   
   > Optimized algorithm cleans comments to avoid use of slow regular expressions
   
-  > Hardy to manipulation (could be hardier though)
+  > Hardy to manipulation
   
   > Modular design allows new subs to be added with just a few lines of code
   
@@ -21,3 +21,5 @@ Quick info:
   > Integrate with dev website
   
   > Plug in to deep learning robo investor
+  
+  > Implement twitter and stockwits scraping
