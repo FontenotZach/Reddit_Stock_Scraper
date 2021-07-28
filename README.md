@@ -1,5 +1,5 @@
 # Reddit_Stock_Scraper
-Scrapes WSB and Investing hot posts and streams new comments to track market trends.
+Scrapes Reddit posts and streams new comments to track market trends.
 
 Quick info:
   > Highly threaded reddit scraper which runs indefinitely and collects stock mention data from r/wallstreetbets and r/investing
@@ -15,10 +15,8 @@ Quick info:
   > Capable of processing ~600 thousand comments per hour on a Intel i7 8th gen processor
   
  Future plans:
-  > Build React dashboard to display data
+  > Integrate robust algorithm to find trending tickers and report them
   
-  > Integrate algorithm to find trending tickers and report them
-  
-  > Integrate real time stock market data to overlay with mention data
+  > Integrate with dev website
   
   > Plug in to deep learning robo investor
