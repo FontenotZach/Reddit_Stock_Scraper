@@ -1,5 +1,10 @@
 import praw     # reddit API
+from prawcore.exceptions import PrawcoreException
+
 from Util import *
+from Log import *
+from QueueMessage import *
+
 from operator import attrgetter
 import time
 import multiprocessing
@@ -14,7 +19,10 @@ import pathlib
 import _thread
 import signal
 import sys
-from prawcore.exceptions import PrawcoreException
+
+# Start log
+l = Log()
+l.start_log()
 
 # setup Reddit instance
 reddit = praw.Reddit(
@@ -23,111 +31,176 @@ reddit = praw.Reddit(
      user_agent="My Reddit Scraper 1.0 by fontenotza"
  )
 
+parent_q = []
 
-# ////////////////////////////////////////////////////////////////
+# /////////////////////////////////////////////////////////////////
 #   Method: stream_scraper_reader
 #   Purpose: Collect live reddit comments and pass them to queue
 #   Inputs:
 #           'q' - ref to comment queue
 #           'sub' - the Subreddit being scraped
-# ////////////////////////////////////////////////////////////////
-def stream_scraper_reader(q, sub):
+# /////////////////////////////////////////////////////////////////
+def stream_scraper_reader(q, sub, parent_q):
 
-    while True:
-        print('SSR ', _thread.get_native_id(), '\t| ', end='')
-        print('Reading comment stream from ' + sub.display_name)
-        comments_processed = 0
-        tickers = []
+    try:
+        sub_name = sub.display_name
+        thread_native_id = _thread.get_native_id()
+        try:
+            l.update_log('Stream scraper running on ' + sub_name, 'SSR '+ str(thread_native_id))
+        except Exception as e:
+            print('error updating log')
+        while True:
+            try:
+                print('SSR ', thread_native_id, '\t| ', end='')
+                print('Reading comment stream from ' + sub_name)
 
-        print('SSR ', _thread.get_native_id(), '\t| ', end='')
-        print(str(len(q)) + ' '+  sub.display_name + ' comments collected')
+                comments_processed = 0  # total comments processed
+                tickers = []            # list of tuples for tickers found in comments (symbol, score)
+
+                print('SSR ', thread_native_id, '\t| ', end='')
+                print(str(len(q)) + ' '+  sub_name + ' comments collected')
+
+                while True:
+                    try:
+                        r_comment = q.pop(0)
+                    except Exception as e:
+                        break
+
+                    if r_comment is None:
+                        break
+
+                    comments_processed += 1
+                    comment = Comment_Info(r_comment.body, -1, r_comment.score)
+                    result = comment_score(comment)
+
+                    try:
+                        if result != None:
+                            for new_ticker in result:
+                                new = True
+                                for ticker in tickers:
+                                    if new_ticker.is_same_symbol(ticker):
+                                        new = False
+                                        ticker.score = ticker.score + new_ticker.score
+                                        break
+                                if new:
+                                    tickers.append(new_ticker)
+                    except Exception as e:
+                        l.update_log('Error in processing comments from ' + sub_name + " :" + str(e), 'SSR '+ str(thread_native_id))
+
+
+                tickers.sort(key = attrgetter('score'), reverse = True)
+                print('SSR ', thread_native_id, '\t| ', end='')
+                print('Processed ' + str(comments_processed) + ' stream comments from ' + sub_name)
+                print('SSR ', thread_native_id, '\t| ', end='')
+                print('Writing out stream results from ' + sub_name )
+
+                l.update_log(str(comments_processed) + ' stream comments scraped from ' + sub_name, 'SSR '+ str(thread_native_id))
+
+                try:
+                    storage_manager(tickers, 'stream', sub_name)
+                except Exception as e:
+                    l.update_log('Error storing tickers from ' + sub_name + ' to file: ' + str(e), 'SSR '+ str(thread_native_id))
+
+                print('SSR ', thread_native_id, '\t| ', end='')
+                print('Waiting...')
+                wait_for_next_hour()
+            except Exception as e:
+                l.update_log('Unexpected error while scraping ' + sub_name + " :" + str(e), 'SSR '+ str(thread_native_id))
+    except Exception as e:
+        l.update_log('Unexpected fatal error while scraping ' + sub_name + " :" + str(e), 'SSR '+ str(thread_native_id))
+
+
+
+    # /////////////////////////////////////////////////////////////////
+    #   Method: scrape_hot_posts
+    #   Purpose: Collects comments from hottest Subreddit posts
+    #   Inputs:
+    #           'num' - the number of posts to scrape
+    #           'sub' - the Subreddit being scraped
+    # /////////////////////////////////////////////////////////////////
+def scrape_hot_posts(num, sub, parent_q):
+
+    try:
+        sub_name = sub.display_name
+        thread_native_id = _thread.get_native_id()
+        try:
+            l.update_log('Hot post scraper running on ' + sub_name, 'SH ' + str(thread_native_id))
+        except Exception as e:
+            print('error updating log')
 
         while True:
-
             try:
-                r_comment = q.pop(0)
-            except:
-                break
+                hot_posts = []
+                print('SH ', thread_native_id, '\t| ', end='')
+                print('Compiling Hottest ' + str(num) + ' ' + sub_name + ' posts')
 
-            if r_comment is None:
-                break
+                start_hour = int(get_index())   # the current hour at start
 
-            comments_processed += 1
-            comment = Comment_Info(r_comment.body, -1, r_comment.score)
-            result = comment_score(comment)
+                posts_retr = False
+                while not posts_retr:
+                    try:
+                        for submission in sub.hot(limit=num):
+                            posts_retr = True
+                            hot_posts.append(submission)
+                    except Exception as e:
+                        l.update_log('Could not retrieve hot posts from ' + sub_name + ": " + str(e), 'SH ' + str(thread_native_id))
 
-            if result != None:
-                for new_ticker in result:
-                    new = True
-                    for ticker in tickers:
-                        if new_ticker.is_same_symbol(ticker):
-                            new = False
-                            ticker.score = ticker.score + new_ticker.score
+                comments_processed = 0  # total comments processed
+                tickers = []            # list of tuples for tickers found in comments (symbol, score)
+
+                try:
+                    for submission in hot_posts:
+
+                        # If more than 45 minutes have passed (75% of hour), stop processing more posts
+                        # Won't eat into next hour's counting time
+                        if get_index() - start_hour > 0.75:
                             break
-                    if new:
-                        tickers.append(new_ticker)
+                        comments = get_post_comments(submission)  # returns tuples (body, depth, score)
+                        print('SH ', thread_native_id, '\t| ', end='')
+                        print('Scraping post -> ' + submission.title)
+                        for comment in comments:
+                            comments_processed += 1
+                            result = comment_score(comment)
+                            if result != None:
+                                for new_ticker in result:
+                                    new = True
+                                    for ticker in tickers:
+                                        if new_ticker.is_same_symbol(ticker):
+                                            new = False
+                                            ticker.score = ticker.score + new_ticker.score
+                                            break
+                                    if new:
+                                        tickers.append(new_ticker)
+                except Exception as e:
+                    l.update_log('Error in processing hot posts from ' + sub_name + " :" + str(e), 'SH '+ str(thread_native_id))
 
-        tickers.sort(key = attrgetter('score'), reverse = True)
-        print('SSR ', _thread.get_native_id(), '\t| ', end='')
-        print('Processed ' + str(comments_processed) + ' stream comments from ' + sub.display_name)
-        print('SSR ', _thread.get_native_id(), '\t| ', end='')
-        print('Writing out stream results from ' + sub.display_name )
 
-        storage_manager(tickers, 'stream', sub)
-        print('SSR ', _thread.get_native_id(), '\t| ', end='')
-        print('Waiting...')
-        wait_for_next_hour()
+                tickers.sort(key = attrgetter('score'), reverse = True)
+                print('SH ', thread_native_id, '\t| ', end='')
+                print('Processed ' + str(comments_processed) + ' hot comments from ' + sub_name)
+                print('SH ', thread_native_id, '\t| ', end='')
+                print('Writing out hot results from ' + sub_name)
+
+                l.update_log(str(comments_processed) + ' hot comments scraped from ' + sub_name, 'SH '+ str(thread_native_id))
+
+                try:
+                    storage_manager(tickers, 'hot', sub_name)
+                except Exception as e:
+                    l.update_log('Error storing tickers from ' + sub_name + ' to file:' + str(e), 'SH '+ str(thread_native_id))
 
 
-# ////////////////////////////////////////////////////////////////
-#   Method: scrape_hot_posts
-#   Purpose: Collects comments from hottest Subreddit posts
-#   Inputs:
-#           'num' - the number of posts to scrape
-#           'sub' - the Subreddit being scraped
-# ////////////////////////////////////////////////////////////////
-def scrape_hot_posts(num, sub):
+                print('SH ', thread_native_id, '\t| ', end='')
+                print('Waiting...')
+                # TODO: Pass queue message to parent.  If message isn't present at beginning of next hour, kill thread and start over
+                wait_for_next_hour()
+            except Exception as e:
+                l.update_log('Unexpected error while scraping ' + sub_name + " :" + str(e), 'SH '+ str(thread_native_id))
 
-    while True:
-        hot_posts = []
-        print('SH ', _thread.get_native_id(), '\t| ', end='')
-        print('Compiling Hottest ' + str(num) + ' ' + sub.display_name + ' posts')
-        for submission in sub.hot(limit=num):
-            hot_posts.append(submission)
+    except Exception as e:
+        l.update_log('Unexpected fatal error while scraping ' + sub_name + " :" + str(e), 'SH '+ str(thread_native_id))
 
-        tickers = []
-        comments_processed = 0
 
-        for submission in hot_posts:
-            comments = get_post_comments(submission)  # returns tuples (body, depth, score)
-            print('SH ', _thread.get_native_id(), '\t| ', end='')
-            print('Scraping post -> ' + submission.title)
-            for comment in comments:
-                comments_processed += 1
-                result = comment_score(comment)
-                if result != None:
-                    for new_ticker in result:
-                        new = True
-                        for ticker in tickers:
-                            if new_ticker.is_same_symbol(ticker):
-                                new = False
-                                ticker.score = ticker.score + new_ticker.score
-                                break
-                        if new:
-                            tickers.append(new_ticker)
-
-        tickers.sort(key = attrgetter('score'), reverse = True)
-        print('SH ', _thread.get_native_id(), '\t| ', end='')
-        print('Processed ' + str(comments_processed) + ' hot comments from ' + sub.display_name)
-        print('SH ', _thread.get_native_id(), '\t| ', end='')
-        print('Writing out hot results from ' + sub.display_name)
-        storage_manager(tickers, 'hot', sub)
-
-        print('SH ', _thread.get_native_id(), '\t| ', end='')
-        print('Waiting...')
-        wait_for_next_hour()
-
-# ////////////////////////////////////////////////////////////////
+# /////////////////////////////////////////////////////////////////
 #   Method: storage_manager
 #   Purpose: Manages file output
 #   Inputs:
@@ -135,11 +208,11 @@ def scrape_hot_posts(num, sub):
 #           'set' - the set the comments belong to
 #               > TODO: convert to enum
 #           'sub' - the Subreddit being scraped
-# ////////////////////////////////////////////////////////////////
-def storage_manager(tickers, set, sub):
+# /////////////////////////////////////////////////////////////////
+def storage_manager(tickers, set, sub_name):
 
     for ticker in tickers:
-        file_name = 'Data/' + set + '/' + sub.display_name + '/' + ticker.symbol + '_data_' + set + '.csv'
+        file_name = 'Data/' + set + '/' + sub_name + '/' + ticker.symbol + '_data_' + set + '.csv'
         file_path = pathlib.Path(file_name)
         if file_path.exists():
             file = open(file_name, 'r')
@@ -166,23 +239,25 @@ def storage_manager(tickers, set, sub):
 
         file.close()
 
-        #write_to_excel(tickers, set, sub.display_name)
-        write_to_csv(tickers, set, sub.display_name)
+        #write_to_excel(tickers, set, sub_name)
+        write_to_csv(tickers, set, sub_name)
 
 
-# ////////////////////////////////////////////////////////////////
+# /////////////////////////////////////////////////////////////////
 #   Method: stream_scraper_writer
 #   Purpose: Processes queue of streamed comments
 #   Inputs:
 #           'q' - ref to comment queue
 #           'stream' - the praw comment stream
 #           'sub' - the Subreddit being scraped
-# ////////////////////////////////////////////////////////////////
-def stream_scraper_writer(q, stream, sub):
+# /////////////////////////////////////////////////////////////////
+def stream_scraper_writer(q, stream, sub, parent_q):
 
-    t_report = _thread.start_new_thread(queue_report, (q, sub.display_name,))
-    print('SSW ', _thread.get_native_id(), '\t| ', end='')
-    print(sub.display_name + ' stream up and running')
+    sub_name = sub.display_name
+    thread_native_id = _thread.get_native_id()
+    t_report = _thread.start_new_thread(queue_report, (q, sub_name,))
+    print('SSW ', thread_native_id, '\t| ', end='')
+    print(sub_name + ' stream up and running')
     while True:
         try:
             for r_comment in stream:
@@ -192,14 +267,16 @@ def stream_scraper_writer(q, stream, sub):
                     q.append(r_comment)
         except PrawcoreException:
             stream = get_stream(sub)
+        except Exception as e:
+            l.update_log('Unexpected fatal error while reading stream from ' + sub_name + " :" + str(e), 'SSW '+ str(thread_native_id))
 
-# ////////////////////////////////////////////////////////////////
+# /////////////////////////////////////////////////////////////////
 #   Method: stream_scraper_reader
 #   Purpose: Collect live reddit comments and pass them to queue
 #   Inputs:
 #           'q' - ref to comment queue
 #           'sub' - the Subreddit being scraped
-# ////////////////////////////////////////////////////////////////
+# /////////////////////////////////////////////////////////////////
 def queue_report(q, sub):
 
     while True:
@@ -207,43 +284,45 @@ def queue_report(q, sub):
         print('SSW ', _thread.get_native_id(), '\t| ', end='')
         print(str(len(q)) + ' ' + sub + ' comments currently in stream queue')
 
-# ////////////////////////////////////////////////////////////////
+# /////////////////////////////////////////////////////////////////
 #   Method: signal_handler
 #   Purpose: Handles escapes
-# ////////////////////////////////////////////////////////////////
+# /////////////////////////////////////////////////////////////////
 def signal_handler(sig, frame):
     print('Abort detected.  Do you wish to quit?  Y/N')
     response = input()
     if response == 'Y':
         sys.exit(0)
     print('Abort aborted')
-    idle()
+    idle(parent_q)
 
-# ////////////////////////////////////////////////////////////////
+# /////////////////////////////////////////////////////////////////
 #   Method: idle
 #   Purpose: Parent thread waiting and periodically error checking
-# ////////////////////////////////////////////////////////////////
-def idle():
+# /////////////////////////////////////////////////////////////////
+def idle(parent_q):
     print('Parent: Idle')
     signal.signal(signal.SIGINT, signal_handler)
     while True:
-        time.sleep(100)
-        #check for errors
+        time.sleep(10)
+        # check parent queue messages
 
-# ////////////////////////////////////////////////////////////////
+# /////////////////////////////////////////////////////////////////
 #   Method: get_stream
 #   Purpose: Returns instance of Subreddit stream
 #   Inputs:
 #           'sub' - the Subreddit being scraped
-# ////////////////////////////////////////////////////////////////
+# /////////////////////////////////////////////////////////////////
 def get_stream(sub):
     return sub.stream.comments(skip_existing=True)
 
-# ////////////////////////////////////////////////////////////////
+# /////////////////////////////////////////////////////////////////
 #   Method: __main__
 #   Purpose: Starting point
-# ////////////////////////////////////////////////////////////////
+# /////////////////////////////////////////////////////////////////
 if __name__ == '__main__':
+
+
 
     wsb = reddit.subreddit('wallstreetbets')
     inv = reddit.subreddit('investing')
@@ -254,19 +333,20 @@ if __name__ == '__main__':
     wsb_comment_queue = []
     inv_comment_queue = []
 
+
     print('Starting threads')
 
-    t1 = _thread.start_new_thread(stream_scraper_writer, (wsb_comment_queue, wsb_stream, wsb,))
-    t2 = _thread.start_new_thread(stream_scraper_writer, (inv_comment_queue, inv_stream, inv,))
+    t1 = _thread.start_new_thread(stream_scraper_writer, (wsb_comment_queue, wsb_stream, wsb, parent_q,))
+    t2 = _thread.start_new_thread(stream_scraper_writer, (inv_comment_queue, inv_stream, inv, parent_q,))
 
-    t3 = _thread.start_new_thread(scrape_hot_posts, (30, wsb,))
-    t4 = _thread.start_new_thread(scrape_hot_posts, (30, inv,))
+    t3 = _thread.start_new_thread(scrape_hot_posts, (15, wsb, parent_q,))
+    t4 = _thread.start_new_thread(scrape_hot_posts, (15, inv, parent_q,))
 
-    t5 = _thread.start_new_thread(stream_scraper_reader, (wsb_comment_queue, wsb,))
-    t6 = _thread.start_new_thread(stream_scraper_reader, (inv_comment_queue, inv,))
+    t5 = _thread.start_new_thread(stream_scraper_reader, (wsb_comment_queue, wsb, parent_q,))
+    t6 = _thread.start_new_thread(stream_scraper_reader, (inv_comment_queue, inv, parent_q,))
 
 
-    idle()
+    idle(parent_q)
 
 
 

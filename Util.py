@@ -154,7 +154,7 @@ def get_time():
 
 def get_index():
     # enter start date here
-    t = datetime.datetime(2021, 7, 27)
+    t = datetime.datetime(2021, 7, 28)
     current_time = get_time()
     dif = current_time - t
 

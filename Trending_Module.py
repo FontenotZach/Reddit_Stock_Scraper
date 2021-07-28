@@ -7,6 +7,8 @@ import glob
 from Ticker import *
 from operator import attrgetter
 import statistics
+from Util import *
+
 
 
 # Trending_Module.py
@@ -18,15 +20,26 @@ import statistics
 # inout: ticker and list of hourly scraper data e.g. {4, 2, 5, 14, 20, 44...}
 # output: calulcate trending score and enter into ticker.trending_score attribute
 def calc_trending_score(ticker, x):
-    y = []
-    for i in range(0, len(x)):
-        y.append(i)
 
-    x_mean = mean(x)
-    y_mean = mean(y)
-    covari = covariance(x, x_mean, y, y_mean)
-    vari = statistics.variance(x)
-    m =  covari / vari
+    current_index = int(get_index())
+    missing_vals = current_index - x.size + 1
+    for i in range(0, missing_vals):
+        x = np.append(x, [0])
+
+    if x.size > 1:
+        y = []
+        for i in range(0, x.size):
+            y.append(i)
+        x_mean = mean(x)
+        y_mean = mean(y)
+        covari = covariance(x, x_mean, y, y_mean)
+        vari = statistics.variance(x)
+        if vari == 0:
+            m = 0
+        else:
+            m =  covari / vari
+    else:
+        m = 0
     return m
 
 # Calculate the mean value of a list of numbers
