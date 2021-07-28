@@ -29,7 +29,7 @@ reddit = praw.Reddit(
      client_id="KmWrNZao9rWwSA",
      client_secret="V5mH25xahLgeUakjH6Y_xRxQ3fmKSA",
      user_agent="My Reddit Scraper 1.0 by fontenotza"
- )
+)
 
 parent_q = []
 
@@ -137,13 +137,22 @@ def scrape_hot_posts(num, sub, parent_q):
                 start_hour = int(get_index())   # the current hour at start
 
                 posts_retr = False
-                while not posts_retr:
+                retries = 0
+                max_retries = 10
+                timeout = False
+                while not posts_retr and not timeout:
                     try:
                         for submission in sub.hot(limit=num):
-                            posts_retr = True
                             hot_posts.append(submission)
+                        if len(hot_posts) > 0:
+                            posts_retr = True
                     except Exception as e:
                         l.update_log('Could not retrieve hot posts from ' + sub_name + ": " + str(e), 'SH ' + str(thread_native_id))
+                    if not posts_retr:
+                        retries += 1
+                        sleep(5)
+                    if retries >= max_retries:
+                        timeout = True
 
                 comments_processed = 0  # total comments processed
                 tickers = []            # list of tuples for tickers found in comments (symbol, score)
@@ -326,24 +335,36 @@ if __name__ == '__main__':
 
     wsb = reddit.subreddit('wallstreetbets')
     inv = reddit.subreddit('investing')
+    sto = reddit.subreddit('stocks')
+    pen = reddit.subreddit('pennystocks')
 
     wsb_stream = get_stream(wsb)
     inv_stream = get_stream(inv)
+    sto_stream = get_stream(sto)
+    pen_stream = get_stream(pen)
 
     wsb_comment_queue = []
     inv_comment_queue = []
+    sto_comment_queue = []
+    pen_comment_queue = []
 
 
     print('Starting threads')
 
     t1 = _thread.start_new_thread(stream_scraper_writer, (wsb_comment_queue, wsb_stream, wsb, parent_q,))
     t2 = _thread.start_new_thread(stream_scraper_writer, (inv_comment_queue, inv_stream, inv, parent_q,))
+    t3 = _thread.start_new_thread(stream_scraper_writer, (sto_comment_queue, sto_stream, sto, parent_q,))
+    t4 = _thread.start_new_thread(stream_scraper_writer, (pen_comment_queue, pen_stream, pen, parent_q,))
 
-    t3 = _thread.start_new_thread(scrape_hot_posts, (15, wsb, parent_q,))
-    t4 = _thread.start_new_thread(scrape_hot_posts, (15, inv, parent_q,))
+    t5 = _thread.start_new_thread(scrape_hot_posts, (30, wsb, parent_q,))
+    t6 = _thread.start_new_thread(scrape_hot_posts, (30, inv, parent_q,))
+    t7 = _thread.start_new_thread(scrape_hot_posts, (30, sto, parent_q,))
+    t8 = _thread.start_new_thread(scrape_hot_posts, (30, pen, parent_q,))
 
-    t5 = _thread.start_new_thread(stream_scraper_reader, (wsb_comment_queue, wsb, parent_q,))
-    t6 = _thread.start_new_thread(stream_scraper_reader, (inv_comment_queue, inv, parent_q,))
+    t9 = _thread.start_new_thread(stream_scraper_reader, (wsb_comment_queue, wsb, parent_q,))
+    t0 = _thread.start_new_thread(stream_scraper_reader, (inv_comment_queue, inv, parent_q,))
+    tA = _thread.start_new_thread(stream_scraper_reader, (sto_comment_queue, sto, parent_q,))
+    tB = _thread.start_new_thread(stream_scraper_reader, (pen_comment_queue, pen, parent_q,))
 
 
     idle(parent_q)
