@@ -43,7 +43,7 @@ def comment_score(comment):
     # calulcate scores
     for ticker in symbols_present:
         score = 1 + comment.score * 0.05
-        ticker.score = score
+        ticker.score = round(score, 2)
     return symbols_present
 
 
