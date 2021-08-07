@@ -34,6 +34,7 @@ reddit = praw.Reddit(
 
 # Parent queue for message passing (not implemented)
 parent_q = []
+mutex_lock = False
 
 
 ## Thread Label Key ##
@@ -198,7 +199,7 @@ def scrape_hot_posts(num, sub, parent_q):
                         l.update_log('Could not retrieve hot posts from ' + sub_name + ": " + str(e), 'SH ' + str(thread_native_id))
                     if not posts_retr:
                         retries += 1
-                        sleep(30)
+                        time.sleep(30)
                     if retries >= max_retries:
                         timeout = True
 
@@ -297,8 +298,12 @@ def storage_manager(tickers, set, sub_name):
     #           ...
 
     # process each ticker
+    while mutex_lock:
+        time.sleep(3)
+
+    mutex_lock = True
     for ticker in tickers:
-        file_name = 'Data/' + set + '/' + sub_name + '/' + ticker.symbol + '_data_' + set + '.csv'
+        file_name = 'Data/' + set + '/' + ticker.symbol + '_data_' + set + '.csv'
         file_path = pathlib.Path(file_name)
         if file_path.exists():
             file = open(file_name, 'r')
@@ -316,7 +321,7 @@ def storage_manager(tickers, set, sub_name):
         while len(values) <= index:
             values.append(0)
 
-        values[index] =  ticker.score
+        values[index] +=  ticker.score
         new_values = values[current_length:]
         file.close()
         file = open(file_name, 'a')
@@ -325,8 +330,9 @@ def storage_manager(tickers, set, sub_name):
 
         file.close()
 
-        #write_to_excel(tickers, set, sub_name)
+            #write_to_excel(tickers, set, sub_name)
         write_to_csv(tickers, set, sub_name)
+    mutex_lock = False
 
 
 # /////////////////////////////////////////////////////////////////
