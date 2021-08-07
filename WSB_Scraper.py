@@ -324,9 +324,9 @@ def storage_manager(tickers, set, sub_name):
         values[index] +=  ticker.score
         new_values = values[current_length:]
         file.close()
-        file = open(file_name, 'a')
+        file = open(file_name, 'w')
         writer = csv.writer(file, lineterminator='\n')
-        writer.writerows(map(lambda x: [x], new_values))
+        writer.writerows(map(lambda x: [x], values))
 
         file.close()
 
