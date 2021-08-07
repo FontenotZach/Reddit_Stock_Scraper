@@ -57,28 +57,42 @@ def covariance(x, mean_x, y, mean_y):
 		covar += (x[i] - mean_x) * (y[i] - mean_y)
 	return covar
 
-if __name__ == '__main__':
+# Ticker is relevant if mentioned 10+ times in any hour within the past day
+def check_relevancy(x):
 
-    # Test with investing stream data for lighter load
-    path_wsb = './Data/stream/wallstreetbets'
-    path_inv = './Data/stream/investing'
+    relevant = False
+    cutoff = 15
+
+    current_index = int(get_index())
+    missing_vals = current_index - x.size + 1
+    if missing_vals < 24:
+        for i in range(0, missing_vals):
+            x = np.append(x, [0])
+
+        for i in range(x.size - 24, x.size):
+            if x[i] >= cutoff:
+                relevant = True
+
+    return relevant
+
+if __name__ == '__main__':
+    data_path = './Data/stream'
 
     tickers = []
 
-    for filename in glob.glob(os.path.join(path_wsb, '*.csv')):
+    for filename in glob.glob(os.path.join(data_path, '*.csv')):
         with open(os.path.join(os.getcwd(), filename), 'r') as f:
 
             symbol = filename.split('/')[4].split('_')[0]
             ticker = Ticker(symbol)
 
             data = np.loadtxt(f)
-            trending_score = calc_trending_score(ticker, data)
-
-            result = (ticker.symbol, trending_score)
-
-            tickers.append(result)
+            if check_relevancy(data):
+                trending_score = calc_trending_score(ticker, data)
+                result = (ticker.symbol, trending_score)
+                tickers.append(result)
 
     tickers.sort(key=lambda x: x[1], reverse = True)
-    headers = ['symbol', 'trending score']
+    headers = ['source', 'symbol', 'trending score']
     df = pd.DataFrame(tickers, columns=headers)
     df.to_csv('Data/trending.csv', index=False)
