@@ -5,7 +5,7 @@ class Log:
     log_path = 'Log/'
 
     def start_log(self):
-        start_timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        start_timestamp = datetime.datetime.now().strftime("%Y:%m:%d-%H:%M:%S")
         self.log_path = self.log_path + start_timestamp + '.txt'
         file = open(self.log_path, 'x')
         file.close()
@@ -15,9 +15,19 @@ class Log:
         file.close()
 
     def update_log(self, message, sender):
-        delim = '|'
-        timestamp = datetime.datetime.now().strftime("%Y:%m:%d-%H:%M:%S")
-        file = open(self.log_path, 'a')
-        msg = "\n\t" + sender + delim + timestamp + delim + message
-        file.write(msg)
-        file.close()
+        updated = False
+        timeout = 10
+        count = 0
+        while not updated and count < timeout:
+            count += 1
+            try:
+                delim = '|'
+                timestamp = datetime.datetime.now().strftime("%Y:%m:%d-%H:%M:%S")
+                file = open(self.log_path, 'a')
+                msg = "\t" + sender + delim + timestamp + delim + message + "\n"
+                file.write(msg)
+                file.close()
+            except:
+                print('Logging error.')
+            else:
+                updated = True

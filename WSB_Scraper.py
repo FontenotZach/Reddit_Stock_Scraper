@@ -19,6 +19,8 @@ import pathlib
 import _thread
 import signal
 import sys
+from threading import Thread, Lock
+import traceback
 
 # Start log
 l = Log()
@@ -34,7 +36,7 @@ reddit = praw.Reddit(
 
 # Parent queue for message passing (not implemented)
 parent_q = []
-mutex_lock = False
+mutex_lock = Lock()
 
 
 ## Thread Label Key ##
@@ -141,8 +143,11 @@ def stream_scraper_reader(q, sub, parent_q):
                 # Try writing data to file
                 try:
                     storage_manager(tickers, 'stream', sub_name)
+                    mutex_lock.release()
                 except Exception as e:
+                    mutex_lock.release()
                     l.update_log('Error storing tickers from ' + sub_name + ' to file: ' + str(e), 'SSR '+ str(thread_native_id))
+                    l.update_log('Stack trace: ' + traceback.format_exc(), 'SSR '+ str(thread_native_id))
 
                 print('SSR ', thread_native_id, '\t| ', end='')
                 print('Waiting...')
@@ -246,8 +251,11 @@ def scrape_hot_posts(num, sub, parent_q):
                 # Try writing data to file
                 try:
                     storage_manager(tickers, 'hot', sub_name)
+                    mutex_lock.release()
                 except Exception as e:
+                    mutex_lock.release()
                     l.update_log('Error storing tickers from ' + sub_name + ' to file:' + str(e), 'SH '+ str(thread_native_id))
+                    l.update_log('Stack trace: ' + traceback.format_exc(), 'SH '+ str(thread_native_id))
 
 
                 print('SH ', thread_native_id, '\t| ', end='')
@@ -298,10 +306,8 @@ def storage_manager(tickers, set, sub_name):
     #           ...
 
     # process each ticker
-    while mutex_lock:
-        time.sleep(3)
 
-    mutex_lock = True
+    mutex_lock.acquire()
     for ticker in tickers:
         file_name = 'Data/' + set + '/' + ticker.symbol + '_data_' + set + '.csv'
         file_path = pathlib.Path(file_name)
@@ -312,27 +318,34 @@ def storage_manager(tickers, set, sub_name):
             file.close()
             file = open(file_name, 'r')
 
-        reader = csv.reader(file)
-        values = list(reader)
-        index = int(get_index())
+        try:
+            reader = csv.reader(file)
+            values = list(reader)
+            updated_values = []
+            for value in values:
+                updated_values.append(value[0])
+            index = int(get_index())
 
-        current_length = len(values)
 
-        while len(values) <= index:
-            values.append(0)
+            current_length = len(values)
 
-        values[index] +=  ticker.score
-        new_values = values[current_length:]
-        file.close()
-        file = open(file_name, 'w')
-        writer = csv.writer(file, lineterminator='\n')
-        writer.writerows(map(lambda x: [x], values))
+            while len(updated_values) <= index:
+                updated_values.append(0)
 
-        file.close()
+            updated_values[index] = float(updated_values[index]) + ticker.score
+            #new_values = values[current_length:]
+            file.close()
+            file = open(file_name, 'w')
+            writer = csv.writer(file, lineterminator='\n')
+            writer.writerows(map(lambda x: [x], updated_values))
 
-            #write_to_excel(tickers, set, sub_name)
-        write_to_csv(tickers, set, sub_name)
-    mutex_lock = False
+            file.close()
+
+                #write_to_excel(tickers, set, sub_name)
+            write_to_csv(tickers, set, sub_name)
+        except:
+            print(updated_values)
+            raise Exception('Error in file I/O')
 
 
 # /////////////////////////////////////////////////////////////////
