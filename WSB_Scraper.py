@@ -35,7 +35,7 @@ reddit = praw.Reddit(
 )
 
 # Parent queue for message passing (not implemented)
-parent_q = []
+#parent_q = []
 mutex_lock = Lock()
 
 
@@ -75,7 +75,7 @@ mutex_lock = Lock()
 #           'q' - ref to comment queue
 #           'sub' - the Subreddit being scraped
 # /////////////////////////////////////////////////////////////////
-def stream_scraper_reader(q, sub, parent_q):
+def stream_scraper_reader(q, sub):
 
     # Fatal error catching block
     try:
@@ -167,7 +167,7 @@ def stream_scraper_reader(q, sub, parent_q):
     #           'num' - the number of posts to scrape
     #           'sub' - the Subreddit being scraped
     # /////////////////////////////////////////////////////////////////
-def scrape_hot_posts(num, sub, parent_q):
+def scrape_hot_posts(num, sub):
     # Fatal error catching block
     try:
         sub_name = sub.display_name                 # bane of sub to scrape
@@ -356,7 +356,7 @@ def storage_manager(tickers, set, sub_name):
 #           'stream' - the praw comment stream
 #           'sub' - the Subreddit being scraped
 # /////////////////////////////////////////////////////////////////
-def stream_scraper_writer(q, stream, sub, parent_q):
+def stream_scraper_writer(q, stream, sub):
 
     sub_name = sub.display_name                 # bane of sub to scrape
     thread_native_id = _thread.get_native_id()  # id of thread
@@ -403,13 +403,13 @@ def signal_handler(sig, frame):
     if response == 'Y':
         sys.exit(0)
     print('Abort aborted')
-    idle(parent_q)
+    idle()
 
 # /////////////////////////////////////////////////////////////////
 #   Method: idle
 #   Purpose: Parent thread waiting and periodically error checking
 # /////////////////////////////////////////////////////////////////
-def idle(parent_q):
+def idle():
     print('Parent: Idle')
     signal.signal(signal.SIGINT, signal_handler)
     while True:
@@ -430,48 +430,27 @@ def get_stream(sub):
 #   Purpose: Starting point
 # /////////////////////////////////////////////////////////////////
 if __name__ == '__main__':
+    # List of subreddit names
+    subreddits = [ 'wallstreetbets', 'investing', 'stocks', 'pennystocks' ]
 
-    # subreddit instances
-    wsb = reddit.subreddit('wallstreetbets')
-    inv = reddit.subreddit('investing')
-    sto = reddit.subreddit('stocks')
-    pen = reddit.subreddit('pennystocks')
+    # These are formed into a list of Tuples with the form (subreddit_name, subreddit_instance, stream_instance, stream_queue)
+    subreddit_list = []
 
-    # stream instances
-    wsb_stream = get_stream(wsb)
-    inv_stream = get_stream(inv)
-    sto_stream = get_stream(sto)
-    pen_stream = get_stream(pen)
+    for sub in subreddits:
+        tmp = reddit.subreddit(sub)
+        empty_list = []
+        sub_tuple = (sub, tmp, get_stream(tmp), empty_list)
+        subreddit_list.append(sub_tuple)
 
-    # stream comment queues
-    wsb_comment_queue = []
-    inv_comment_queue = []
-    sto_comment_queue = []
-    pen_comment_queue = []
-
-
-    print('Starting threads')
     # Starting threads for stream_scraper_writer, scrape_hot_posts, and stream_scraper_reader
     # Each new sub needs one thread for each method
-
-    t1 = _thread.start_new_thread(stream_scraper_writer, (wsb_comment_queue, wsb_stream, wsb, parent_q,))
-    t2 = _thread.start_new_thread(stream_scraper_writer, (inv_comment_queue, inv_stream, inv, parent_q,))
-    t3 = _thread.start_new_thread(stream_scraper_writer, (sto_comment_queue, sto_stream, sto, parent_q,))
-    t4 = _thread.start_new_thread(stream_scraper_writer, (pen_comment_queue, pen_stream, pen, parent_q,))
-
-    t5 = _thread.start_new_thread(scrape_hot_posts, (30, wsb, parent_q,))
-    t6 = _thread.start_new_thread(scrape_hot_posts, (30, inv, parent_q,))
-    t7 = _thread.start_new_thread(scrape_hot_posts, (30, sto, parent_q,))
-    t8 = _thread.start_new_thread(scrape_hot_posts, (30, pen, parent_q,))
-
-    t9 = _thread.start_new_thread(stream_scraper_reader, (wsb_comment_queue, wsb, parent_q,))
-    t0 = _thread.start_new_thread(stream_scraper_reader, (inv_comment_queue, inv, parent_q,))
-    tA = _thread.start_new_thread(stream_scraper_reader, (sto_comment_queue, sto, parent_q,))
-    tB = _thread.start_new_thread(stream_scraper_reader, (pen_comment_queue, pen, parent_q,))
+    for sub in subreddit_list:
+        print(f'Starting threads for {sub[0]}')
+        writer = _thread.start_new_thread(stream_scraper_writer, (sub[3], sub[2], sub[1]))
+        scraper = _thread.start_new_thread(scrape_hot_posts, (30, sub[1]))
+        reader = _thread.start_new_thread(stream_scraper_reader, (sub[3], sub[1]))
 
     # allow parent thread to idle
-    idle(parent_q)
-
-
+    idle()
 
 ######################################################################################
