@@ -17,7 +17,9 @@ Quick info:
   
 Usage:
   > To run standalone, simply run `$ python3 WSB_Scraper.py`
+  
   > For a safer, screen session, run `$ sh run.sh`
+  
   > To create a Docker container:
   > 1. Run `# docker build --name reddit-scraper .` to build the Docker image
   > 2. Then run `# docker create --name reddit-scraper` to create a Docker container from the image.
