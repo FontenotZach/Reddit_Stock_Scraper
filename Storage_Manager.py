@@ -18,38 +18,37 @@ class StorageManager:
         self.file_mutex = Lock()
 
     def write_data(self, tickers, set, sub_name):
+        print(f'Storage manager writing data for Subreddit {sub_name}')
 
         self.file_mutex.acquire()
         # Write each ticker score to appropriate SymbolDirectory
         for ticker in tickers:
             file_name = f'Data/{set}/{ticker.symbol}_data_{set}.csv'
             file_path = pathlib.Path(file_name)
-            if file_path.exists():
-                file = open(file_name, 'r')
-            else:
-                file = open(file_name, 'x')
-                file.close()
-                file = open(file_name, 'r')
-
-            #TODO: Comment
-            reader = csv.reader(file)
-            values = list(reader)
+            
+            print(f'Storage manager Writing to file {file_name}')
             updated_values = []
-
-            for value in values:
-                updated_values.append(value[0])
-
-            file.close()
+            current_length = 0
             index = int(get_index())
 
-            current_length = len(values)
+            if file_path.exists():
+                #TODO: Comment
+                file = open(file_name, 'r')
+
+                reader = csv.reader(file)
+                values = list(reader)
+                current_length = len(values)
+
+                for row in values:
+                    updated_values.append(row[0])
+                file.close()
 
             while len(updated_values) <= index:
                 updated_values.append(0)
 
             updated_values[index] = float(updated_values[index]) + ticker.score
-            #new_values = values[current_length:]
 
+            print(f'Storage manager writing file {file}')
             file = open(file_name, 'w')
             writer = csv.writer(file, lineterminator='\n')
             writer.writerows(map(lambda x: [x], updated_values))

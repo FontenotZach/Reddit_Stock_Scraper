@@ -1,5 +1,6 @@
 import _thread
 import traceback
+import random
 from operator import attrgetter
 
 from Util import *
@@ -20,16 +21,15 @@ def stream_scraper_reader(q, sub, l, storage_manager):
     try:
         sub_name = sub.display_name                 # name of sub to scrape
         thread_native_id = _thread.get_native_id()  # id of thread
-        # Catch issues with logging
-        try:
-            l.update_log(f'Stream scraper running on {sub_name}', 'SSR '+ str(thread_native_id))
-        except Exception as e:
-            print('error updating log')
+
+        l.update_log(f'Stream scraper running on {sub_name}', f'SSR {thread_native_id}')
+
         # Hourly loop to read comments from queue
         while True:
+            n = random.random() * 2.0
+            print('SSR ', thread_native_id, '\t| ', end='')
+            print(f'Waiting {n} seconds before processing stream from {sub_name}')
             try:
-                print('SSR ', thread_native_id, '\t| ', end='')
-                print(f'Reading comment stream from {sub_name}')
 
                 comments_processed = 0  # total comments processed
                 tickers = []            # list of tuples for tickers found in comments (symbol, score)
@@ -83,7 +83,7 @@ def stream_scraper_reader(q, sub, l, storage_manager):
                 storage_manager.write_data(tickers, 'stream', sub_name)
 
                 print('SSR ', thread_native_id, '\t| ', end='')
-                print('Waiting...')
+                print('Waiting for start of next hour.')
                 wait_for_next_hour()
             except Exception as e:
                 l.update_log(f'Unexpected error while scraping {sub_name}: {e}', 'SSR '+ str(thread_native_id))
