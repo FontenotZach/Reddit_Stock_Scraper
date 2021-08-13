@@ -50,11 +50,14 @@ def scrape_hot_posts(num, sub, logger, storage_manager):
                         logger.update_log(f'Could not retrieve hot posts from {sub_name}: {str(e)}', 'SH ' + str(thread_native_id))
                     if not posts_retr:
                         retries += 1
+                        print('Posts not retrieved.')
                         time.sleep(30)
                     if retries >= max_retries:
+                        print('Timed out reading posts')
                         timeout = True
                 comments_processed = 0  # total comments processed
-                tickers = []            # list of tuples for tickers found in comments (symbol, score)
+                tickers = {}            #dictionary of tickers (key: symbol, value:score)
+                #tickers = []            # list of tuples for tickers found in comments (symbol, score)
 
                 try:
                     for submission in hot_posts:
@@ -71,27 +74,29 @@ def scrape_hot_posts(num, sub, logger, storage_manager):
                         for comment in comments:
                             comments_processed += 1
                             result = comment_score(comment)
+
                             if result != None:
                                 for new_ticker in result:
-                                    new = True
-                                    for ticker in tickers:
-                                        if new_ticker.is_same_symbol(ticker):
-                                            new = False
-                                            ticker.score = ticker.score + new_ticker.score
-                                            break
-                                    if new:
-                                        tickers.append(new_ticker)
+                                    scraped_symbol = new_ticker.symbol
+                                    if tickers.has_key(scraped_symbol):
+                                        tickers[scraped_symbol] = tickers[scraped_symbol] + new_ticker.score
+                                    else
+                                        tickers[scraped_symbol] = new_ticker.score
+
+
                 except Exception as e:
                     logger.update_log(f'Error in processing hot posts from {sub_name}: {str(e)}', 'SH '+ str(thread_native_id))
 
+                # TODO: ensure this works as intended
+                ticker_list = tickers.items()
+                ticker_list.sort(key = attrgetter('score'), reverse = True)
 
-                tickers.sort(key = attrgetter('score'), reverse = True)
                 print('SH ', thread_native_id, '\t| ', end='')
                 print(f'Processed {comments_processed} hot comments from {sub_name}')
                 print('SH ', thread_native_id, '\t| ', end='')
                 print(f'Writing out hot results from {sub_name}')
 
-                logger.update_log(f'{str(comments_processed)} hot comments scraped from {sub_name}', 'SH '+ str(thread_native_id))
+                logger.update_log(f'{comments_processed} hot comments scraped from {sub_name}', 'SH '+ str(thread_native_id))
 
                 storage_manager.write_data(tickers, 'hot', sub_name)
 

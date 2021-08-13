@@ -2,6 +2,7 @@ import _thread
 import traceback
 import random
 from operator import attrgetter
+import time
 
 from Util import *
 from Storage_Manager import *
@@ -29,6 +30,8 @@ def stream_scraper_reader(q, sub, l, storage_manager):
             n = random.random() * 2.0
             print('SSR ', thread_native_id, '\t| ', end='')
             print(f'Waiting {n} seconds before processing stream from {sub_name}')
+            time.sleep(n)
+
             try:
 
                 comments_processed = 0  # total comments processed
