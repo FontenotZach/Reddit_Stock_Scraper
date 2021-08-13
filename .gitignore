@@ -1,3 +1,7 @@
+# Folders created by the program
+Data/
+Log/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

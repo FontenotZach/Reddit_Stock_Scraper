@@ -4,6 +4,7 @@ from prawcore.exceptions import PrawcoreException
 from Util import *
 from Log import *
 from QueueMessage import *
+from Init import initialize
 
 from operator import attrgetter
 import time
@@ -24,15 +25,6 @@ import traceback
 
 # Start log
 l = Log()
-l.start_log()
-
-# Setup Reddit instance
-# TODO: Look into PRAW multithread support
-reddit = praw.Reddit(
-     client_id="KmWrNZao9rWwSA",
-     client_secret="V5mH25xahLgeUakjH6Y_xRxQ3fmKSA",
-     user_agent="My Reddit Scraper 1.0 by fontenotza"
-)
 
 # Parent queue for message passing (not implemented)
 #parent_q = []
@@ -430,6 +422,17 @@ def get_stream(sub):
 #   Purpose: Starting point
 # /////////////////////////////////////////////////////////////////
 if __name__ == '__main__':
+    initialize()
+    l.start_log()
+
+    # Setup Reddit instance
+    # TODO: Look into PRAW multithread support
+    reddit = praw.Reddit(
+         client_id="KmWrNZao9rWwSA",
+         client_secret="V5mH25xahLgeUakjH6Y_xRxQ3fmKSA",
+         user_agent="My Reddit Scraper 1.0 by fontenotza"
+    )
+
     # List of subreddit names
     subreddits = [ 'wallstreetbets', 'investing', 'stocks', 'pennystocks' ]
 
