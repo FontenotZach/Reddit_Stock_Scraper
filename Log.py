@@ -1,33 +1,27 @@
 import datetime
-from pathlib import Path
+import os
+from threading import Lock
 
 class Log:
     log_path = 'Log/'
+    log_mutex = Lock()
 
     def start_log(self):
         start_timestamp = datetime.datetime.now().strftime("%Y:%m:%d-%H:%M:%S")
-        self.log_path = self.log_path + start_timestamp + '.txt'
-        file = open(self.log_path, 'x')
-        file.close()
-        file = open(self.log_path, 'a')
-        start_msg = "-------------------------\nLog started @ " + start_timestamp + "\n-------------------------\n"
-        file.write(start_msg)
-        file.close()
+        self.log_path = os.path.join(self.log_path, f'{start_timestamp}.txt')
 
-    def update_log(self, message, sender):
-        updated = False
-        timeout = 10
-        count = 0
-        while not updated and count < timeout:
-            count += 1
-            try:
-                delim = '|'
-                timestamp = datetime.datetime.now().strftime("%Y:%m:%d-%H:%M:%S")
-                file = open(self.log_path, 'a')
-                msg = "\t" + sender + delim + timestamp + delim + message + "\n"
-                file.write(msg)
-                file.close()
-            except:
-                print('Logging error.')
-            else:
-                updated = True
+        log_mutex.acquire()
+        file = open(self.log_path, 'w')
+        file.write(f'-------------------------\nLog started @ {start_timestamp}\n-------------------------\n')
+        file.close()
+        log_mutex.release()
+
+    def update_log(self, message, sender, log_mutex):
+        delim = ' | '
+        timestamp = datetime.datetime.now().strftime("%Y:%m:%d-%H:%M:%S")
+
+        log_mutex.acquire()
+        file = open(self.log_path, 'a')
+        file.write(f'\t{sender}{delim}{timestamp}{delim}{message}\n')
+        file.close()
+        log_mutex.release()

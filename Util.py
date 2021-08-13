@@ -1,7 +1,5 @@
 import praw
 from ftplib import FTP
-from Ticker import *
-from Comment_Info import *
 import re
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -14,6 +12,10 @@ import time
 import pandas as pd
 import numpy as np
 
+from Ticker import *
+from Comment_Info import *
+
+#TODO
 def get_post_comments(post, more_limit=50):
     comments = []
     post.comments.replace_more(limit=more_limit)
@@ -21,6 +23,7 @@ def get_post_comments(post, more_limit=50):
         comments.extend(process_comment(top_level))
     return comments
 
+#TODO
 def process_comment(comment, depth=0):
     yield Comment_Info(comment.body, depth, comment.score)
     for reply in comment.replies:
@@ -47,6 +50,7 @@ def comment_score(comment):
     return symbols_present
 
 
+#TODO
 def check_removed(comment):
 
     symbol_reader = open('removed.txt', 'r')
@@ -63,6 +67,7 @@ def check_removed(comment):
 
     return symbols_present
 
+# TODO
 def extract_symbols(comment):
 
     comment.body = re.sub(r'[$]', '', comment.body)
@@ -80,8 +85,7 @@ def extract_symbols(comment):
 
     return symbols_present
 
-
-
+#TODO
 def clean_comment(comment):
     # stop_word_reader = open('stopwords.txt', 'r')
     # stop_words = stop_word_reader.readlines()
@@ -100,11 +104,13 @@ def clean_comment(comment):
 
     return
 
+# Removes most links from the comments using regex
 def remove_links(comment):
     comment.body = re.sub(r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', '', comment.body)
     comment.body = re.sub(r'[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', '', comment.body)
     return
 
+# TODO
 def check_all_capitalized(comment):
     all_cap = False
 
@@ -118,6 +124,7 @@ def check_all_capitalized(comment):
     return all_cap
 
 
+# TODO
 def retrieve_stock_symbols():
     file_name = 'nasdaqlisted.txt'
     ftp = FTP('ftp.nasdaqtrader.com')
@@ -146,12 +153,11 @@ def retrieve_stock_symbols():
 
     file_writer.close()
 
+# TODO
 def get_time():
+    return datetime.datetime.now()
 
-    date_time = datetime.datetime.now()
-
-    return date_time
-
+# TODO
 def get_index():
     # enter start date here
     t = datetime.datetime(2021, 8, 11)
@@ -165,7 +171,7 @@ def get_index():
 
     return total_hours
 
-
+#TODO
 def wait_for_next_hour():
 
     entry_time = get_time()
@@ -180,6 +186,7 @@ def wait_for_next_hour():
         current_hour = current_time.hour
 
 
+#TODO
 def write_to_csv(tickers, set, sub):
 
     frame = []
@@ -196,6 +203,7 @@ def write_to_csv(tickers, set, sub):
     df.to_csv('Data/Reddit-Stock-Scraper_'+ sub + '_' + set + '.csv', index=False)
 
 
+#TODO
 def write_to_excel(tickers, set, sub):
     wb = Workbook()
     WSB_Data = wb.add_sheet('WSB_Data')
