@@ -20,7 +20,11 @@ import traceback
 from Util import *
 from Log import *
 from QueueMessage import *
+from Storage_Manager import *
 from Init import initialize
+from Stream_Writer import stream_scraper_writer
+from Stream_Reader import stream_scraper_reader
+from Scrape_Hot_Posts import scrape_hot_posts
 
 # Parent queue for message passing (not implemented)
 #parent_q = []
@@ -87,7 +91,9 @@ if __name__ == '__main__':
 
     # Start log
     logger = Log()
-    logger.start_log()
+
+    # Start storage manager
+    storage_manager = StorageManager()
 
     # Setup Reddit instance
     # TODO: Look into PRAW multithread support
@@ -115,8 +121,8 @@ if __name__ == '__main__':
     for sub in subreddit_list:
         print(f'Starting threads for {sub[0]}')
         writer = _thread.start_new_thread(stream_scraper_writer, (sub[3], sub[2], sub[1], logger))
-        scraper = _thread.start_new_thread(scrape_hot_posts, (30, sub[1], logger))
-        reader = _thread.start_new_thread(stream_scraper_reader, (sub[3], sub[1], logger))
+        scraper = _thread.start_new_thread(scrape_hot_posts, (30, sub[1], logger, storage_manager))
+        reader = _thread.start_new_thread(stream_scraper_reader, (sub[3], sub[1], logger, storage_manager))
 
     # allow parent thread to idle
     idle()
