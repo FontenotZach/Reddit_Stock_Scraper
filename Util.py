@@ -11,11 +11,12 @@ import datetime
 import time
 import pandas as pd
 import numpy as np
+import pathlib
 
 from Ticker import *
 from Comment_Info import *
 
-debug = True
+debug = False
 
 #TODO: This seems to not do much, but take a long time to do so
 def get_post_comments(post, more_limit=50):
@@ -163,18 +164,24 @@ def retrieve_stock_symbols():
 def get_time():
     return datetime.datetime.now()
 
-# TODO
+# Gets the number of hours since the script started running
 def get_index():
-    # enter start date here
-    t = datetime.datetime(2021, 8, 11)
-    current_time = get_time()
-    dif = current_time - t
-
+    # Make sure the file 'Data/start' exists
+    name = 'Data/start'
+    fname = pathlib.Path(name)
+    assert fname.exists(), f'File {name} does not exist!'
+    
+    # If so, use its timestamp as the starting timestamp
+    start_time = datetime.datetime.fromtimestamp(fname.stat().st_mtime)
+    current_time = datetime.datetime.now()
+    dif = current_time - start_time
+    
+    # Calculate the number of hours since the start of the data gathering process
     total_hours = dif.total_seconds() / 3600
-
     if total_hours < 0:
         total_hours = 0
 
+    # Return the total number of elapsed hours as the index
     return total_hours
 
 #TODO

@@ -17,10 +17,10 @@ COOLDOWN_TIME = 5
 # /////////////////////////////////////////////////////////////////
 def stream_scraper_writer(q, stream, sub, l):
 
-    sub_name = sub.display_name                 # name of sub to scrape
-    thread_native_id = threading.get_native_id()# id of thread
-    comment_rate = 10                           # Number of comments to print a message for
-    comment_number = 0                          # Number of comments processed
+    sub_name = sub.display_name                     # name of sub to scrape
+    thread_native_id = threading.get_native_id()    # id of thread
+    comment_rate = 5                                # Number of comments to print a message for
+    comment_number = 0                              # Number of comments processed
     print(f'SSW {thread_native_id}\t| {sub_name} stream writer started')
 
     # Constantly looks for new comments and writes to queue

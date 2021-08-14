@@ -7,6 +7,8 @@ import csv
 import pathlib
 import Ticker
 
+debug = False
+
 # /////////////////////////////////////////////////////////////////
 #   Method: storage_manager
 #   Purpose: Manages file output
@@ -23,23 +25,26 @@ class StorageManager:
         self.file_mutex = Lock()
 
     def write_data(self, tickers, set, sub_name):
-        print(f'Storage manager writing data for Subreddit {sub_name}')
-        print(f'Data: {sub_name} {set} | {tickers}')
+        if debug:
+            print(f'Storage manager writing data for Subreddit {sub_name}')
+            print(f'Data: {sub_name} {set} | {tickers}')
 
         self.file_mutex.acquire()
         # Write each ticker score to appropriate SymbolDirectory
         for ticker in tickers:
             file_name = f'Data/{set}/{ticker[0]}_data_{set}.csv'
             file_path = pathlib.Path(file_name)
-            
-            print(f'Storage manager checking and updating {file_name}')
+        
+            if debug:
+                print(f'Storage manager checking and updating {file_name}')
             updated_values = []
             current_length = 0
             index = int(get_index())
 
             if file_path.exists():
                 #TODO: Comment
-                print(f'Storage manager reading existing file {file_name}')
+                if debug:
+                    print(f'Storage manager reading existing file {file_name}')
                 file = open(file_name, 'r')
 
                 reader = csv.reader(file)
@@ -55,7 +60,8 @@ class StorageManager:
 
             updated_values[index] = float(updated_values[index]) + ticker[1]
 
-            print(f'Storage manager writing file {file_name}')
+            if debug:
+                print(f'Storage manager writing file {file_name}')
             file = open(file_name, 'w')
             writer = csv.writer(file, lineterminator='\n')
             writer.writerows(map(lambda x: [x], updated_values))

@@ -26,10 +26,7 @@ from Stream_Writer import stream_scraper_writer
 from Stream_Reader import stream_scraper_reader
 from Scrape_Hot_Posts import scrape_hot_posts
 
-# Parent queue for message passing (not implemented)
-#parent_q = []
-mutex_lock = Lock()
-POSTS_PER_BATCH = 2
+POSTS_PER_BATCH = 30
 
 
 # /////////////////////////////////////////////////////////////////

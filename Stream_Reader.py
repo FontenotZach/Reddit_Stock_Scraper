@@ -40,25 +40,20 @@ def stream_scraper_reader(q, sub, l, storage_manager):
         print(f'SSR {thread_native_id}\t| Begin processing stream from {sub_name}')
 
         comments_processed = 0  # total comments processed
-        tickers = {}            #dictionary of tickers (key: symbol, value:score
+        tickers = {}            #dictionary of tickers (key: symbol, value: score)
 
-        #print(f'SSR {thread_native_id}\t| {len(q)} {sub_name} comments collected')
+        print(f'SSR {thread_native_id}\t| {sub_name} {len(q)} comments collected')
         #print(f'SSR {thread_native_id}\t| queue: {q}')
 
         # Pops all comments each hour until queue is empty
-        while True:
+        while len(q) != 0:
             # Checks if there is a comment to get
-            if len(q) == 0:
-                break
-
-            r_comment = q.pop(0)
-            #print(f'{r_comment}')
 
             # Get Comment score
+            r_comment = q.pop(0)
             comments_processed += 1
             comment = Comment_Info(r_comment.body, -1, r_comment.score)
             ticker_result = comment_score(comment)
-            #print(f'c:{comment}\nr:{result}')
 
             # Process Tickers scraped
             if ticker_result != None:
@@ -71,16 +66,14 @@ def stream_scraper_reader(q, sub, l, storage_manager):
                         tickers[symbol] = new_ticker.score
 
         # End loop
-        print(f'SSR {thread_native_id}\t| Queue reader loop ended {thread_native_id}.')
+        print(f'SSR {thread_native_id}\t| Queue reader processed {comments_processed} comments from {sub_name}')
 
         # End Comment processing
         sorted_tickers = sorted(tickers.items(), key=lambda x:x[1], reverse=True)
 
-        print(f'SSR {thread_native_id}\t| Processed {comments_processed} stream comments from {sub_name}')
-        #print(f'SSR {thread_native_id}\t| Writing out stream results from {sub_name}')
-
         # Try writing data to file
-        storage_manager.write_data(sorted_tickers, 'stream', sub_name)
+        if len(sorted_tickers) != 0:
+            storage_manager.write_data(sorted_tickers, 'stream', sub_name)
 
         print(f'SSR {thread_native_id}\t| Waiting for {COOLDOWN_TIME} seconds.')
         time.sleep(COOLDOWN_TIME)

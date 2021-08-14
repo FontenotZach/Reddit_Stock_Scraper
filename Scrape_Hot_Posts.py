@@ -38,6 +38,7 @@ def scrape_hot_posts(num, sub, logger, storage_manager):
         retries = 0         # number of attempts made this hour
         max_retries = 10    # max attempts per hour
         timeout = False     # has max attempts been reached?
+
         while not posts_retr and not timeout:
             # try to obtain posts
             try:
@@ -48,7 +49,6 @@ def scrape_hot_posts(num, sub, logger, storage_manager):
                     posts_retr = True
             except Exception as e:
                 print(f'SH {thread_native_id}\t| Exception {e}')
-#                    logger.update_log(f'Could not retrieve hot posts from {sub_name}: {str(e)}', 'SH ' + str(thread_native_id))
             if not posts_retr:
                 retries += 1
                 print(f'SH {thread_native_id}\t| Posts not retrieved.')
@@ -78,10 +78,10 @@ def scrape_hot_posts(num, sub, logger, storage_manager):
                     for new_ticker in result:
                         scraped_symbol = new_ticker.symbol
                         if scraped_symbol in tickers:
-                            print(f'Existing ticker {new_ticker.symbol} {sub_name}')
+                            #print(f'Existing ticker {new_ticker.symbol} {sub_name}')
                             tickers[scraped_symbol] = tickers[scraped_symbol] + new_ticker.score
                         else:
-                            print(f'New ticker {new_ticker.symbol} {sub_name}')
+                            #print(f'New ticker {new_ticker.symbol} {sub_name}')
                             tickers[scraped_symbol] = new_ticker.score
 
         # 
@@ -95,6 +95,5 @@ def scrape_hot_posts(num, sub, logger, storage_manager):
             storage_manager.write_data(sorted_tickers, 'hot', sub_name)
 
         print(f'SH {thread_native_id}\t| waiting for the rest of the hour...')
-        # TODO: Pass queue message to parent.  If message isn't present at beginning of next hour, kill thread and start over
         wait_for_next_hour()
 

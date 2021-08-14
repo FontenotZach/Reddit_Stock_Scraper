@@ -1,4 +1,5 @@
 import os
+import datetime
 
 # /////////////////////////////////////////////////////////////////
 #   Method: initialize
@@ -26,8 +27,8 @@ def initialize():
 
         try:
             # Try to open it with write permissions, then delete it
-            file = open(name, 'w')
-            file.close()
+            f = open(name, 'w')
+            f.close()
             os.remove(name)
 
         except PermissionError as e:
@@ -41,5 +42,14 @@ def initialize():
                 print(f'Successfully opened, closed, and deleted {name}.')
 
             pass
+
+    # Check that there's a starting date/timestamp file
+    # If not, then create it
+    name = 'Data/start'
+    if not os.path.isfile(name):
+        if debug:
+            print(f'Creating timestamp file {name}')
+        f = open(name, 'x')
+        f.close()
 
     return
