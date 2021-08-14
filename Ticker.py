@@ -9,6 +9,4 @@ class Ticker:
         self.symbol = symbol
 
     def is_same_symbol(self, t):
-        if self.symbol == t.symbol:
-            return True
-        return False
+        return self.symbol == t.symbol

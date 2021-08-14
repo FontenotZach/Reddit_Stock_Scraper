@@ -10,7 +10,6 @@ COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
 COPY . .
-RUN mkdir -p Log
 RUN chown -R wsb:wsb /scraper
 
 USER wsb
