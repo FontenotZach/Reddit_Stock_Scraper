@@ -1,7 +1,4 @@
 Log
+Data
 __pycache__
 .gitignore
-*/.gitignore
-*/*/.gitignore
-*/*.csv
-*/*/*.csv

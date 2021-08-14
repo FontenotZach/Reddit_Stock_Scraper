@@ -15,11 +15,17 @@ import numpy as np
 from Ticker import *
 from Comment_Info import *
 
-#TODO
+debug = True
+
+#TODO: This seems to not do much, but take a long time to do so
 def get_post_comments(post, more_limit=50):
+    if debug:
+        print(f'Util.py: Getting comments from post {post}')
     comments = []
     post.comments.replace_more(limit=more_limit)
     for top_level in post.comments:
+        if debug:
+            print(f'Util.py: extending from {top_level}')
         comments.extend(process_comment(top_level))
     return comments
 
@@ -193,9 +199,9 @@ def write_to_csv(tickers, set, sub):
     headers = ['dataset', 'symbol', 'score']
 
     for ticker in tickers:
-        if ticker.score <= 0:
+        if ticker[1] <= 0:
             break
-        row = ['Score', ticker.symbol, ticker.score]
+        row = ['Score', ticker[0], ticker[1]]
         frame.append(row)
 
 

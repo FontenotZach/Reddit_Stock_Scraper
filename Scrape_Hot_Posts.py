@@ -1,6 +1,6 @@
-import _thread
+import threading
 import traceback
-
+import random
 from operator import attrgetter
 
 from Util import *
@@ -16,97 +16,85 @@ from Storage_Manager import *
 #           'storage_manager'   - Instance of the Storage Manager object
 # /////////////////////////////////////////////////////////////////
 def scrape_hot_posts(num, sub, logger, storage_manager):
-    # Fatal error catching block
-    try:
-        sub_name = sub.display_name                 # bane of sub to scrape
-        thread_native_id = _thread.get_native_id()  # id of thread
+    sub_name = sub.display_name                 # name of sub to scrape
+    thread_native_id = threading.get_native_id()  # id of thread
 
-        logger.update_log('Hot post scraper running on ' + sub_name, 'SH ' + str(thread_native_id))
+    #logger.update_log('Hot post scraper running on ' + sub_name, 'SH ' + str(thread_native_id))
+    print(f'SH {thread_native_id}\t| {sub_name} hot post scraper started')
 
-        # Hourly loop to obtain hot posts
-        while True:
-            # Inner loop try block ensures PRAW interrutions are handled
+    # Hourly loop to obtain hot posts
+    while True:
+        # Wait for between 5 and 10 seconds to begin processing
+        n = (random.random() * 5.0) + 5.0
+        print(f'SH {thread_native_id}\t| Waiting {n:.2f} seconds before scraping hottest from {sub_name}')
+        time.sleep(n)
+        print(f'SH {thread_native_id}\t| Compiling Hottest {num} {sub_name} posts')
+        hot_posts = []  # list of hot posts for {sub_name}
+
+        start_hour = int(get_index())   # the current hour at start
+
+        # This block tries obtaining hot posts until PRAW responds correctly or timeout is reached
+        posts_retr = False  # have the posts been retrieved?
+        retries = 0         # number of attempts made this hour
+        max_retries = 10    # max attempts per hour
+        timeout = False     # has max attempts been reached?
+        while not posts_retr and not timeout:
+            # try to obtain posts
             try:
-                hot_posts = []  # list of hot posts for {sub_name}
-                print('SH ', thread_native_id, '\t| ', end='')
-                print('Compiling Hottest ' + str(num) + ' ' + sub_name + ' posts')
-
-                start_hour = int(get_index())   # the current hour at start
-
-                # This block tries obtaining hot posts until PRAW responds correctly or timeout is reached
-                posts_retr = False  # have the posts been retrieved?
-                retries = 0         # number of attempts made this hour
-                max_retries = 10    # max attempts per hour
-                timeout = False     # has max attempts been reached?
-                while not posts_retr and not timeout:
-                    # try to obtain posts
-                    try:
-                        for submission in sub.hot(limit=num):
-                            hot_posts.append(submission)
-                        # check if posts have been collected
-                        if len(hot_posts) > 0:
-                            posts_retr = True
-                    except Exception as e:
-                        logger.update_log(f'Could not retrieve hot posts from {sub_name}: {str(e)}', 'SH ' + str(thread_native_id))
-                    if not posts_retr:
-                        retries += 1
-                        print('Posts not retrieved.')
-                        time.sleep(30)
-                    if retries >= max_retries:
-                        print('Timed out reading posts')
-                        timeout = True
-                comments_processed = 0  # total comments processed
-                tickers = {}            #dictionary of tickers (key: symbol, value:score)
-                #tickers = []            # list of tuples for tickers found in comments (symbol, score)
-
-                try:
-                    for submission in hot_posts:
-
-                        # If more than 45 minutes have passed (75% of hour), stop processing more posts
-                        # Won't eat into next hour's counting time
-                        if get_index() - start_hour > 0.75:
-                            break
-                        comments = get_post_comments(submission)  # returns tuples (body, depth, score)
-                        print('SH ', thread_native_id, '\t| ', end='')
-                        print(f'Scraping post -> {submission.title}')
-
-                        # Pulls out metion data and comglomerates for each ticker
-                        for comment in comments:
-                            comments_processed += 1
-                            result = comment_score(comment)
-
-                            if result != None:
-                                for new_ticker in result:
-                                    scraped_symbol = new_ticker.symbol
-                                    if tickers.has_key(scraped_symbol):
-                                        tickers[scraped_symbol] = tickers[scraped_symbol] + new_ticker.score
-                                    else
-                                        tickers[scraped_symbol] = new_ticker.score
-
-
-                except Exception as e:
-                    logger.update_log(f'Error in processing hot posts from {sub_name}: {str(e)}', 'SH '+ str(thread_native_id))
-
-                # TODO: ensure this works as intended
-                ticker_list = tickers.items()
-                ticker_list.sort(key = attrgetter('score'), reverse = True)
-
-                print('SH ', thread_native_id, '\t| ', end='')
-                print(f'Processed {comments_processed} hot comments from {sub_name}')
-                print('SH ', thread_native_id, '\t| ', end='')
-                print(f'Writing out hot results from {sub_name}')
-
-                logger.update_log(f'{comments_processed} hot comments scraped from {sub_name}', 'SH '+ str(thread_native_id))
-
-                storage_manager.write_data(tickers, 'hot', sub_name)
-
-                print('SH ', thread_native_id, '\t| ', end='')
-                print('Waiting for the rest of the hour...')
-                # TODO: Pass queue message to parent.  If message isn't present at beginning of next hour, kill thread and start over
-                wait_for_next_hour()
+                for submission in sub.hot(limit=num):
+                    hot_posts.append(submission)
+                # check if posts have been collected
+                if len(hot_posts) > 0:
+                    posts_retr = True
             except Exception as e:
-                logger.update_log(f'Unexpected error while scraping {sub_name}: {str(e)}', 'SH '+ str(thread_native_id))
+                print(f'SH {thread_native_id}\t| Exception {e}')
+#                    logger.update_log(f'Could not retrieve hot posts from {sub_name}: {str(e)}', 'SH ' + str(thread_native_id))
+            if not posts_retr:
+                retries += 1
+                print(f'SH {thread_native_id}\t| Posts not retrieved.')
+                time.sleep(30)
+            if retries >= max_retries:
+                print(f'SH {thread_native_id}\t| Timed out reading posts')
+                timeout = True
 
-    except Exception as e:
-        logger.update_log(f'Unexpected fatal error while scraping {sub_name}: {str(e)}', 'SH '+ str(thread_native_id))
+        comments_processed = 0  # total comments processed
+        tickers = {}            #dictionary of tickers (key: symbol, value:score)
+
+        for submission in hot_posts:
+            # If more than 45 minutes have passed (75% of hour), stop processing more posts
+            # Won't eat into next hour's counting time
+            #if get_index() - start_hour > 0.75:
+            #    break
+            print(f'SH {thread_native_id}\t| Getting comments from -> {submission.title[:30]}')
+            comments = get_post_comments(submission)  # returns tuples (body, depth, score)
+            print(f'SH {thread_native_id}\t| Scraping post -> {submission.title[:30]}')
+
+            # Pulls out metion data and comglomerates for each ticker
+            for comment in comments:
+                comments_processed += 1
+                result = comment_score(comment)
+
+                if result != None:
+                    for new_ticker in result:
+                        scraped_symbol = new_ticker.symbol
+                        if scraped_symbol in tickers:
+                            print(f'Existing ticker {new_ticker.symbol} {sub_name}')
+                            tickers[scraped_symbol] = tickers[scraped_symbol] + new_ticker.score
+                        else:
+                            print(f'New ticker {new_ticker.symbol} {sub_name}')
+                            tickers[scraped_symbol] = new_ticker.score
+
+        # TODO: ensure this works as intended
+        sorted_tickers = sorted(tickers.items(), key=lambda x:x[1], reverse=True)
+
+        print(f'SH {thread_native_id}\t| Processed {comments_processed} hot comments from {sub_name}')
+        print(f'SH {thread_native_id}\t| Writing out hot results from {sub_name}')
+
+        #logger.update_log(f'{comments_processed} hot comments scraped from {sub_name}', 'SH '+ str(thread_native_id))
+        if len(sorted_tickers) != 0:
+            storage_manager.write_data(sorted_tickers, 'hot', sub_name)
+
+        print(f'SH {thread_native_id}\t| waiting for the rest of the hour...')
+        # TODO: Pass queue message to parent.  If message isn't present at beginning of next hour, kill thread and start over
+        wait_for_next_hour()
 
