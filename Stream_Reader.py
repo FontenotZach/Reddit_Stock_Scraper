@@ -1,4 +1,4 @@
-import _thread
+import threading
 import traceback
 import random
 from operator import attrgetter
@@ -6,6 +6,14 @@ import time
 
 from Util import *
 from Storage_Manager import *
+
+# 60 Second wait period to let the queue fill up
+COOLDOWN_TIME = 60
+
+
+def reader_wrapper(q, sub, l, storage_manager, timeout):
+    pass
+
 
 # /////////////////////////////////////////////////////////////////
 #   Method: stream_scraper_reader
@@ -15,82 +23,65 @@ from Storage_Manager import *
 #           'sub'               - the Subreddit being scraped
 #           'l'                 - Instance of the Log object
 #           'storage_manager'   - Instance of the StorageManager object
+#           print(f'SSR {thread_native_id}\t| ')
 # /////////////////////////////////////////////////////////////////
 def stream_scraper_reader(q, sub, l, storage_manager):
+    sub_name = sub.display_name                 # name of sub to scrape
+    thread_native_id = threading.get_native_id()  # id of thread
 
-    # Fatal error catching block
-    try:
-        sub_name = sub.display_name                 # name of sub to scrape
-        thread_native_id = _thread.get_native_id()  # id of thread
+    print(f'SSR {thread_native_id}\t| Stream reader started on {sub_name}')
 
-        l.update_log(f'Stream scraper running on {sub_name}', f'SSR {thread_native_id}')
+    # Hourly loop to read comments from queue
+    while True:
+        # Wait for between 5 and 10 seconds to begin processing
+        n = (random.random() * 5.0) + 5.0
+        print(f'SSR {thread_native_id}\t| Waiting {n:.2f} seconds before processing stream from {sub_name}')
+        time.sleep(n)
+        print(f'SSR {thread_native_id}\t| Begin processing stream from {sub_name}')
 
-        # Hourly loop to read comments from queue
+        comments_processed = 0  # total comments processed
+        tickers = {}            #dictionary of tickers (key: symbol, value:score
+
+        #print(f'SSR {thread_native_id}\t| {len(q)} {sub_name} comments collected')
+        #print(f'SSR {thread_native_id}\t| queue: {q}')
+
+        # Pops all comments each hour until queue is empty
         while True:
-            n = random.random() * 2.0
-            print('SSR ', thread_native_id, '\t| ', end='')
-            print(f'Waiting {n} seconds before processing stream from {sub_name}')
-            time.sleep(n)
+            # Checks if there is a comment to get
+            if len(q) == 0:
+                break
 
-            try:
+            r_comment = q.pop(0)
+            #print(f'{r_comment}')
 
-                comments_processed = 0  # total comments processed
-                tickers = []            # list of tuples for tickers found in comments (symbol, score)
+            # Get Comment score
+            comments_processed += 1
+            comment = Comment_Info(r_comment.body, -1, r_comment.score)
+            ticker_result = comment_score(comment)
+            #print(f'c:{comment}\nr:{result}')
 
-                print('SSR ', thread_native_id, '\t| ', end='')
-                print(f'{len(q)} {sub_name} comments collected')
+            # Process Tickers scraped
+            if ticker_result != None:
+                # Pulls out metion data and comglomerates for each ticker
+                for new_ticker in ticker_result:
+                    symbol = new_ticker.symbol
+                    if symbol in tickers:
+                        tickers[symbol] = tickers[symbol] + new_ticker.score
+                    else:
+                        tickers[symbol] = new_ticker.score
 
-                # Pops all comments each hour until queue is empty
-                while True:
-                    # Checks if there is a comment to get
-                    try:
-                        r_comment = q.pop(0)
-                    except Exception as e:
-                        break
+        # End loop
+        print(f'SSR {thread_native_id}\t| Queue reader loop ended {thread_native_id}.')
 
-                    if r_comment is None:
-                        break
+        # End Comment processing
+        sorted_tickers = sorted(tickers.items(), key=lambda x:x[1], reverse=True)
 
-                    # Get Comment score
-                    comments_processed += 1
-                    comment = Comment_Info(r_comment.body, -1, r_comment.score)
-                    result = comment_score(comment)
+        print(f'SSR {thread_native_id}\t| Processed {comments_processed} stream comments from {sub_name}')
+        #print(f'SSR {thread_native_id}\t| Writing out stream results from {sub_name}')
 
-                    # Process Tickers scraped
-                    try:
-                        if result != None:
-                            # Pulls out metion data and comglomerates for each ticker
-                            for new_ticker in result:
-                                new = True
-                                for ticker in tickers:
-                                    if new_ticker.is_same_symbol(ticker):
-                                        new = False
-                                        ticker.score = ticker.score + new_ticker.score
-                                        break
-                                if new:
-                                    tickers.append(new_ticker)
-                    except Exception as e:
-                        l.update_log(f'Error in processing comments from {sub_name}: {e}', 'SSR '+ str(thread_native_id))
+        # Try writing data to file
+        storage_manager.write_data(sorted_tickers, 'stream', sub_name)
 
-                # End Comment processing
-
-                tickers.sort(key = attrgetter('score'), reverse = True)
-                print('SSR ', thread_native_id, '\t| ', end='')
-                print(f'Processed {comments_processed} stream comments from {sub_name}')
-                print('SSR ', thread_native_id, '\t| ', end='')
-                print(f'Writing out stream results from {sub_name}')
-
-                l.update_log(f'{comments_processed} stream comments scraped from {sub_name}', 'SSR '+ str(thread_native_id))
-
-                # Try writing data to file
-                storage_manager.write_data(tickers, 'stream', sub_name)
-
-                print('SSR ', thread_native_id, '\t| ', end='')
-                print('Waiting for start of next hour.')
-                wait_for_next_hour()
-            except Exception as e:
-                l.update_log(f'Unexpected error while scraping {sub_name}: {e}', 'SSR '+ str(thread_native_id))
-        # End hourly loop
-    except Exception as e:
-        l.update_log(f'Unexpected fatal error while scraping {sub_name}: {e}', 'SSR '+ str(thread_native_id))
+        print(f'SSR {thread_native_id}\t| Waiting for {COOLDOWN_TIME} seconds.')
+        time.sleep(COOLDOWN_TIME)
 

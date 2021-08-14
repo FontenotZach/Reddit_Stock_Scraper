@@ -84,7 +84,7 @@ def scrape_hot_posts(num, sub, logger, storage_manager):
                             print(f'New ticker {new_ticker.symbol} {sub_name}')
                             tickers[scraped_symbol] = new_ticker.score
 
-        # TODO: ensure this works as intended
+        # 
         sorted_tickers = sorted(tickers.items(), key=lambda x:x[1], reverse=True)
 
         print(f'SH {thread_native_id}\t| Processed {comments_processed} hot comments from {sub_name}')

@@ -29,6 +29,7 @@ from Scrape_Hot_Posts import scrape_hot_posts
 # Parent queue for message passing (not implemented)
 #parent_q = []
 mutex_lock = Lock()
+POSTS_PER_BATCH = 2
 
 
 # /////////////////////////////////////////////////////////////////
@@ -64,7 +65,7 @@ def signal_handler(sig, frame):
 #   Purpose: Parent thread waiting and periodically error checking
 # /////////////////////////////////////////////////////////////////
 def idle():
-    print('Parent: Idle')
+    print('MAIN: Idle')
     signal.signal(signal.SIGINT, signal_handler)
     while True:
         time.sleep(10)
@@ -91,18 +92,12 @@ if __name__ == '__main__':
 
     # Start log
     logger = Log()
-
     # Start storage manager
     storage_manager = StorageManager()
 
     # Setup Reddit instance
     # TODO: Look into PRAW multithread support
-    # TODO: Remove these from the public github repo
-    reddit = praw.Reddit(
-         client_id="KmWrNZao9rWwSA",
-         client_secret="V5mH25xahLgeUakjH6Y_xRxQ3fmKSA",
-         user_agent="My Reddit Scraper 1.0 by fontenotza"
-    )
+    reddit = praw.Reddit("stockscraper")
 
     # List of subreddit names
     subreddits = [ 'wallstreetbets', 'investing', 'stocks', 'pennystocks' ]
@@ -119,10 +114,10 @@ if __name__ == '__main__':
     # Starting threads for stream_scraper_writer, scrape_hot_posts, and stream_scraper_reader
     # Each new sub needs one thread for each method
     for sub in subreddit_list:
-        print(f'Starting threads for {sub[0]}')
+        print(f'MAIN: Starting threads for {sub[0]}')
         writer = _thread.start_new_thread(stream_scraper_writer, (sub[3], sub[2], sub[1], logger))
-        scraper = _thread.start_new_thread(scrape_hot_posts, (30, sub[1], logger, storage_manager))
         reader = _thread.start_new_thread(stream_scraper_reader, (sub[3], sub[1], logger, storage_manager))
+        scraper = _thread.start_new_thread(scrape_hot_posts, (POSTS_PER_BATCH, sub[1], logger, storage_manager))
 
     # allow parent thread to idle
     idle()

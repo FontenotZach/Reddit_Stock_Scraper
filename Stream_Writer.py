@@ -1,7 +1,10 @@
 import praw
 from prawcore.exceptions import PrawcoreException
-import _thread
+import threading
 import datetime
+
+# 5 second wait to let praw comment stream populate
+COOLDOWN_TIME = 5
 
 # /////////////////////////////////////////////////////////////////
 #   Method: stream_scraper_writer
@@ -15,22 +18,26 @@ import datetime
 def stream_scraper_writer(q, stream, sub, l):
 
     sub_name = sub.display_name                 # name of sub to scrape
-    thread_native_id = _thread.get_native_id()  # id of thread
-    print('SSW ', thread_native_id, '\t| ', end='')
-    print(f'{sub_name} stream up and running')
-    l.update_log(f'Started stream writer for {sub_name}', f'SSW {thread_native_id}')
+    thread_native_id = threading.get_native_id()# id of thread
+    comment_rate = 10                           # Number of comments to print a message for
+    comment_number = 0                          # Number of comments processed
+    print(f'SSW {thread_native_id}\t| {sub_name} stream writer started')
 
     # Constantly looks for new comments and writes to queue
     while True:
         try:
             for r_comment in stream:
                 if r_comment is None:
-                    time.sleep(3)
+                    time.sleep(COOLDOWN_TIME)
                 else:
+                    comment_number += 1
+                    if (comment_number % comment_rate) == 0:
+                        print(f'SSW {thread_native_id}\t| Comment {comment_number} in {sub_name} added to the queue')
                     q.append(r_comment)
+
         # If stream fails, get new stream
         except PrawcoreException as e:
-            l.update_log(f'Unexpected fatal error while reading stream from {sub_name} :{e}', f'SSW {thread_native_id}')
+            print(f'Praw core exception from writer thread {thread_native_id}: {e}')
             stream = get_stream(sub)
         except Exception as e:
-            l.update_log(f'Unexpected fatal error while reading stream from {sub_name} :{e}', f'SSW {thread_native_id}')
+            print(f'Exception from writer thread {thread_native_id}: {e}')
