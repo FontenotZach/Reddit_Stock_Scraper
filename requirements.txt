@@ -1,8 +1,5 @@
 praw
-xlrd
 nltk
 numpy
 pandas
-xlutils
-xlwt
 prawcore

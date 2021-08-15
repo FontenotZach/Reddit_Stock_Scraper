@@ -1,13 +1,11 @@
-from threading import Lock
-from os import path
+import multiprocessing as mp
+import os
+import queue
 
 from Util import *
 
 import csv
 import pathlib
-import Ticker
-
-debug = False
 
 # /////////////////////////////////////////////////////////////////
 #   Method: storage_manager
@@ -19,15 +17,36 @@ debug = False
 #           'sub' - the Subreddit being scraped
 # /////////////////////////////////////////////////////////////////
 class StorageManager:
+    process_id = 0
     file_mutex = 0
+    queue = 0
 
-    def __init__(self):
-        self.file_mutex = Lock()
+    WAIT_TIME = 60
+
+    debug = True
+
+    def __init__(self, data_queue):
+        self.file_mutex = mp.Lock()
+        self.queue = data_queue
+
+    def p(self, s):
+        if self.debug:
+            print(f'SMAN {self.process_id}\t| {s}')
+
+    def process_queue(self):
+        self.process_id = os.getpid()
+
+        while True:
+            self.p(f'Processing data queue: {self.queue.qsize()}')
+            while not self.queue.empty():
+                (tickers, set, sub_name) = self.queue.get()
+                self.write_data(tickers, set, sub_name)
+
+            time.sleep(self.WAIT_TIME)
+
 
     def write_data(self, tickers, set, sub_name):
-        if debug:
-            print(f'Storage manager writing data for Subreddit {sub_name}')
-            print(f'Data: {sub_name} {set} | {tickers}')
+        self.p(f'Storage manager writing data for sub{sub_name}/{set}')
 
         self.file_mutex.acquire()
         # Write each ticker score to appropriate SymbolDirectory
@@ -35,16 +54,14 @@ class StorageManager:
             file_name = f'Data/{set}/{ticker[0]}_data_{set}.csv'
             file_path = pathlib.Path(file_name)
         
-            if debug:
-                print(f'Storage manager checking and updating {file_name}')
+            self.p(f'Storage manager checking and updating {file_name}')
             updated_values = []
             current_length = 0
             index = int(get_index())
 
             if file_path.exists():
                 #TODO: Comment
-                if debug:
-                    print(f'Storage manager reading existing file {file_name}')
+                self.p('Storage manager reading existing file {file_name}')
                 file = open(file_name, 'r')
 
                 reader = csv.reader(file)
@@ -60,8 +77,7 @@ class StorageManager:
 
             updated_values[index] = float(updated_values[index]) + ticker[1]
 
-            if debug:
-                print(f'Storage manager writing file {file_name}')
+            self.p(f'Storage manager writing file {file_name}')
             file = open(file_name, 'w')
             writer = csv.writer(file, lineterminator='\n')
             writer.writerows(map(lambda x: [x], updated_values))
@@ -69,5 +85,4 @@ class StorageManager:
             file.close()
 
             write_to_csv(tickers, set, sub_name)
-
         self.file_mutex.release()

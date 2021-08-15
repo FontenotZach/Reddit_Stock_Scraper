@@ -1,6 +1,6 @@
 import datetime
 import os
-from threading import Lock
+from multiprocessing import Lock
 
 class Log:
     log_path = 'Log/'
