@@ -1,26 +1,17 @@
 import praw     # reddit API
 from prawcore.exceptions import PrawcoreException
 
-from tkinter import *
-from tkinter.ttk import *
-from operator import attrgetter
-from os import path
-from threading import Thread, Lock
+import threading
 import time
 import multiprocessing
 import datetime
-import platform
-import csv
-import pathlib
-import _thread
 import signal
-import sys
-import traceback
 
 from Util import *
 from Log import *
 from QueueMessage import *
 from Storage_Manager import *
+
 from Init import initialize
 from Stream_Writer import stream_scraper_writer
 from Stream_Reader import stream_scraper_reader
@@ -40,7 +31,7 @@ def queue_report(q, sub):
     # sleeps for a minute then reports # of comments in queue
     while True:
         time.sleep(60)
-        print('SSW ', _thread.get_native_id(), '\t| ', end='')
+        print('SSW ', threading.get_native_id(), '\t| ', end='')
         print(f'{len(q)} {sub} comments currently in stream queue')
 
 
@@ -52,7 +43,7 @@ def signal_handler(sig, frame):
     print('Abort detected.  Do you wish to quit?  y/N')
     response = input()
     if response == 'Y' or response == 'y':
-        sys.exit(0)
+        exit(0)
     print('Abort cancelled. Continuing..')
     idle()
 
@@ -112,9 +103,14 @@ if __name__ == '__main__':
     # Each new sub needs one thread for each method
     for sub in subreddit_list:
         print(f'MAIN: Starting threads for {sub[0]}')
-        writer = _thread.start_new_thread(stream_scraper_writer, (sub[3], sub[2], sub[1], logger))
-        reader = _thread.start_new_thread(stream_scraper_reader, (sub[3], sub[1], logger, storage_manager))
-        scraper = _thread.start_new_thread(scrape_hot_posts, (POSTS_PER_BATCH, sub[1], logger, storage_manager))
+        
+        writer = threading.Thread(target=stream_scraper_writer, args=(sub[3], sub[2], sub[1], logger))
+        reader = threading.Thread(target=stream_scraper_reader, args=(sub[3], sub[1], logger, storage_manager))
+        scraper = threading.Thread(target=scrape_hot_posts, args=(POSTS_PER_BATCH, sub[1], logger, storage_manager))
+
+        reader.start()
+        writer.start()
+        scraper.start()
 
     # allow parent thread to idle
     idle()
