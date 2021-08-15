@@ -1,11 +1,10 @@
-from threading import Lock
+from multiprocessing import Lock
 from os import path
 
 from Util import *
 
 import csv
 import pathlib
-import Ticker
 
 debug = False
 

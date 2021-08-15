@@ -1,9 +1,9 @@
 import praw     # reddit API
 from prawcore.exceptions import PrawcoreException
+import multiprocessing as mp
 
 import threading
 import time
-import multiprocessing
 import datetime
 import signal
 
@@ -31,7 +31,7 @@ def queue_report(q, sub):
     # sleeps for a minute then reports # of comments in queue
     while True:
         time.sleep(60)
-        print('SSW ', threading.get_native_id(), '\t| ', end='')
+        print('SSW ', os.getpid()(), '\t| ', end='')
         print(f'{len(q)} {sub} comments currently in stream queue')
 
 
@@ -77,10 +77,12 @@ def get_stream(sub):
 if __name__ == '__main__':
     # Run initialization TODO: Merge more into this
     initialize()
+    mp.set_start_method('spawn')
 
     # Start log
     logger = Log()
     # Start storage manager
+    storage_queue = mp.Queue() 
     storage_manager = StorageManager()
 
     # Setup Reddit instance
@@ -95,18 +97,18 @@ if __name__ == '__main__':
 
     for sub in subreddits:
         tmp = reddit.subreddit(sub)
-        empty_list = []
-        sub_tuple = (sub, tmp, get_stream(tmp), empty_list)
+        empty_queue = mp.Queue()
+        sub_tuple = (sub, tmp, get_stream(tmp), empty_queue)
         subreddit_list.append(sub_tuple)
 
-    # Starting threads for stream_scraper_writer, scrape_hot_posts, and stream_scraper_reader
+    # Starting processes for stream_scraper_writer, scrape_hot_posts, and stream_scraper_reader
     # Each new sub needs one thread for each method
     for sub in subreddit_list:
-        print(f'MAIN: Starting threads for {sub[0]}')
-        
-        writer = threading.Thread(target=stream_scraper_writer, args=(sub[3], sub[2], sub[1], logger))
-        reader = threading.Thread(target=stream_scraper_reader, args=(sub[3], sub[1], logger, storage_manager))
-        scraper = threading.Thread(target=scrape_hot_posts, args=(POSTS_PER_BATCH, sub[1], logger, storage_manager))
+        print(f'MAIN: Starting processes for {sub[0]}')
+
+        writer =  mp.Process(target=stream_scraper_writer, args=(sub[3], sub[2], sub[1], logger))
+        reader =  mp.Process(target=stream_scraper_reader, args=(sub[3], sub[1], logger, storage_manager))
+        scraper = mp.Process(target=scrape_hot_posts, args=(POSTS_PER_BATCH, sub[1], logger, storage_manager))
 
         reader.start()
         writer.start()

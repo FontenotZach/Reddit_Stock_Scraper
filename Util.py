@@ -3,10 +3,7 @@ from ftplib import FTP
 import re
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-import xlwt
-from xlrd import open_workbook
-from xlutils.copy import copy
-from xlwt import Workbook
+
 import datetime
 import time
 import pandas as pd
@@ -131,7 +128,7 @@ def check_all_capitalized(comment):
     return all_cap
 
 
-# TODO
+# TODO Add caching for these values
 def retrieve_stock_symbols():
     file_name = 'nasdaqlisted.txt'
     ftp = FTP('ftp.nasdaqtrader.com')
@@ -160,7 +157,7 @@ def retrieve_stock_symbols():
 
     file_writer.close()
 
-# TODO
+# TODO This is a touch unnecessary
 def get_time():
     return datetime.datetime.now()
 
@@ -186,18 +183,8 @@ def get_index():
 
 #TODO
 def wait_for_next_hour():
-
-    entry_time = get_time()
-    current_time = get_time()
-
-    entry_hour = entry_time.hour
-    current_hour = current_time.hour
-
-    while entry_hour == current_hour:
-        time.sleep(20)
-        current_time = get_time()
-        current_hour = current_time.hour
-
+    minutes_until_next_hour = 60 - datetime.datetime.minute()
+    time.sleep(60 * minutes_until_next_hour)
 
 #TODO
 def write_to_csv(tickers, set, sub):
@@ -215,25 +202,3 @@ def write_to_csv(tickers, set, sub):
     df = pd.DataFrame(frame, columns=headers)
     df.to_csv('Data/Reddit-Stock-Scraper_'+ sub + '_' + set + '.csv', index=False)
 
-
-#TODO
-def write_to_excel(tickers, set, sub):
-    wb = Workbook()
-    WSB_Data = wb.add_sheet('WSB_Data')
-
-    WSB_Data.write(0,0, 'WSB Scrape Data')
-    WSB_Data.write(2, 0, 'Symbol')
-    WSB_Data.write(2, 1, 'Score')
-
-    row = 3
-
-    for ticker in tickers:
-        if ticker.score <= 0:
-            break
-        WSB_Data.write(row, 0, ticker.symbol)
-        WSB_Data.write(row, 1, ticker.score)
-        row+=1
-
-    row = 1
-
-    wb.save('Data/Reddit-Stock-Scraper_'+ sub + '_' + set + '.xls')
