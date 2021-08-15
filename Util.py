@@ -1,8 +1,5 @@
-import praw
 from ftplib import FTP
 import re
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
 
 import datetime
 import time
@@ -183,7 +180,7 @@ def get_index():
 
 #TODO
 def wait_for_next_hour():
-    minutes_until_next_hour = 60 - datetime.datetime.minute()
+    minutes_until_next_hour = 60 - datetime.datetime.now().minute
     time.sleep(60 * minutes_until_next_hour)
 
 #TODO

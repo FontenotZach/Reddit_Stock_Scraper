@@ -1,42 +1,72 @@
 import praw
+import prawcore
 from prawcore.exceptions import PrawcoreException
 import os
+import time
+import multiprocessing as mp
 
-# 5 second wait to let praw comment stream populate
-COOLDOWN_TIME = 5
+class Stream_Writer:
+    # 5 second wait to let praw comment stream populate
+    COOLDOWN_TIME = 5
 
-# /////////////////////////////////////////////////////////////////
-#   Method: stream_scraper_writer
-#   Purpose: Processes queue of streamed comments
-#   Inputs:
-#           'q'         - ref to comment queue
-#           'stream'    - the praw comment stream
-#           'sub'       - the Subreddit being scraped
-#           'l'         - Instance of the Log object
-# /////////////////////////////////////////////////////////////////
-def stream_scraper_writer(q, stream, sub, l):
+    process_id = 0
+    sub_name = ''
 
-    sub_name = sub.display_name                     # name of sub to scrape
-    process_id = os.getpid()()    # id of thread
-    comment_rate = 5                                # Number of comments to print a message for
-    comment_number = 0                              # Number of comments processed
-    print(f'SSW {process_id}\t| {sub_name} stream writer started')
+    reddit = 0
+    subreddit = 0
 
-    # Constantly looks for new comments and writes to queue
-    while True:
-        try:
-            for r_comment in stream:
-                if r_comment is None:
-                    time.sleep(COOLDOWN_TIME)
-                else:
-                    comment_number += 1
-                    if (comment_number % comment_rate) == 0:
-                        print(f'SSW {process_id}\t| Comment {comment_number} in {sub_name} added to the queue')
-                    q.append(r_comment)
+    comment_rate = 10   # Number of comments to print a message for
+    comment_number = 0  # Number of comments processed
 
-        # If stream fails, get new stream
-        except PrawcoreException as e:
-            print(f'Praw core exception from writer thread {process_id}: {e}')
-            stream = get_stream(sub)
-        except Exception as e:
-            print(f'Exception from writer thread {process_id}: {e}')
+    debug = True
+
+    # /////////////////////////////////////////////////////////////////
+    #   Method: __init__
+    #   Purpose: Initializes class variables and creates local praw instance
+    #   Inputs:
+    #       'comment_queue' - A queue holding comments to process
+    #       'sub_name'      - Name of the Subreddit being scraped
+    # /////////////////////////////////////////////////////////////////
+    def __init__(self, comment_queue, sub_name):
+        # Initialize class variables
+        self.sub_name = sub_name
+        self.comment_queue = comment_queue
+
+        # Each process that scrapes reddit needs its own instance of praw
+        self.reddit = praw.Reddit("stockscraper")
+        self.subreddit = self.reddit.subreddit(self.sub_name)
+
+    def p(self, s):
+        if self.debug:
+            print(f'SSW {self.process_id}\t| {s}')
+
+    # /////////////////////////////////////////////////////////////////
+    #   Method: writer_wrapper
+    #   Purpose: Manages stream_scraper_writer
+    # /////////////////////////////////////////////////////////////////
+    def writer_wrapper(self):
+        self.process_id = os.getpid()
+        print(f'SSW {self.process_id}\t| {self.sub_name} stream writer started')
+
+        while True:            
+            writer = mp.Process(target=self.stream_scraper_writer)
+            writer.start()
+            writer.join()
+
+            print(f'SSW {self.process_id}\t| Waiting for {self.COOLDOWN_TIME} seconds.')
+            time.sleep(self.COOLDOWN_TIME)
+
+
+    # /////////////////////////////////////////////////////////////////
+    #   Method: stream_scraper_writer
+    #   Purpose: Processes queue of streamed comments into a comment queue
+    # /////////////////////////////////////////////////////////////////
+    def stream_scraper_writer(self):
+        stream = self.subreddit.stream.comments(skip_existing=True)
+
+        for r_comment in stream:
+            if r_comment is not None:
+                self.comment_number += 1
+                if (self.comment_number % self.comment_rate) == 0:
+                    self.p(f'Comment {self.comment_number} in {self.sub_name} added to the queue')
+                self.comment_queue.put(r_comment)

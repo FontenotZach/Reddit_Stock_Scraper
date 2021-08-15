@@ -1,5 +1,3 @@
-import praw
-
 class Comment_Info:
     body = ''
     user = ''

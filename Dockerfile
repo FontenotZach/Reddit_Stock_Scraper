@@ -1,5 +1,5 @@
 FROM amancevice/pandas:1.3.1-alpine
-RUN apk add --no-cache python3 python3-dev python3-tkinter py3-pip git screen g++ gcc make
+RUN apk add --no-cache python3-dev py3-pip g++ gcc make
 
 RUN addgroup -S wsb && adduser -S wsb -G wsb
 

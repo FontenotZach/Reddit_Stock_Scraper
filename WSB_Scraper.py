@@ -1,24 +1,16 @@
-import praw     # reddit API
-from prawcore.exceptions import PrawcoreException
-import multiprocessing as mp
-
-import threading
 import time
-import datetime
 import signal
+import multiprocessing as mp
 
 from Util import *
 from Log import *
 from QueueMessage import *
 from Storage_Manager import *
+from Stream_Writer import *
+from Stream_Reader import *
+from Scrape_Hot_Posts import *
 
 from Init import initialize
-from Stream_Writer import stream_scraper_writer
-from Stream_Reader import stream_scraper_reader
-from Scrape_Hot_Posts import scrape_hot_posts
-
-POSTS_PER_BATCH = 30
-
 
 # /////////////////////////////////////////////////////////////////
 #   Method: queue_report
@@ -32,7 +24,7 @@ def queue_report(q, sub):
     while True:
         time.sleep(60)
         print('SSW ', os.getpid()(), '\t| ', end='')
-        print(f'{len(q)} {sub} comments currently in stream queue')
+        print(f'{q.qsize()} {sub} comments currently in stream queue')
 
 
 # /////////////////////////////////////////////////////////////////
@@ -61,16 +53,6 @@ def idle():
 
 
 # /////////////////////////////////////////////////////////////////
-#   Method: get_stream
-#   Purpose: Returns instance of Subreddit stream
-#   Inputs:
-#           'sub' - the Subreddit being scraped
-# /////////////////////////////////////////////////////////////////
-def get_stream(sub):
-    return sub.stream.comments(skip_existing=True)
-
-
-# /////////////////////////////////////////////////////////////////
 #   Method: __main__
 #   Purpose: Starting point
 # /////////////////////////////////////////////////////////////////
@@ -83,11 +65,13 @@ if __name__ == '__main__':
     logger = Log()
     # Start storage manager
     storage_queue = mp.Queue() 
-    storage_manager = StorageManager()
+    storage_manager = StorageManager(storage_queue)
+    sm = mp.Process(target=storage_manager.process_queue)
+    sm.start()
 
     # Setup Reddit instance
     # TODO: Look into PRAW multithread support
-    reddit = praw.Reddit("stockscraper")
+    #reddit = praw.Reddit("stockscraper")
 
     # List of subreddit names
     subreddits = [ 'wallstreetbets', 'investing', 'stocks', 'pennystocks' ]
@@ -95,10 +79,11 @@ if __name__ == '__main__':
     # These are formed into a list of Tuples with the form (subreddit_name, subreddit_instance, stream_instance, stream_queue)
     subreddit_list = []
 
-    for sub in subreddits:
-        tmp = reddit.subreddit(sub)
+    for sub_name in subreddits:
+        #sub = reddit.subreddit(sub_name)
         empty_queue = mp.Queue()
-        sub_tuple = (sub, tmp, get_stream(tmp), empty_queue)
+        #sub_tuple = (sub_name, sub, sub.stream.comments(skip_existing=True), empty_queue)
+        sub_tuple = (sub_name, empty_queue)
         subreddit_list.append(sub_tuple)
 
     # Starting processes for stream_scraper_writer, scrape_hot_posts, and stream_scraper_reader
@@ -106,12 +91,17 @@ if __name__ == '__main__':
     for sub in subreddit_list:
         print(f'MAIN: Starting processes for {sub[0]}')
 
-        writer =  mp.Process(target=stream_scraper_writer, args=(sub[3], sub[2], sub[1], logger))
-        reader =  mp.Process(target=stream_scraper_reader, args=(sub[3], sub[1], logger, storage_manager))
-        scraper = mp.Process(target=scrape_hot_posts, args=(POSTS_PER_BATCH, sub[1], logger, storage_manager))
+        # Create the wrapper objects for each thread
+        reader_manager = Stream_Reader(sub[1], sub[0], storage_queue)
+        writer_manager = Stream_Writer(sub[1], sub[0])
+        hot_scraper_manager = Scrape_Hot_Posts(sub[0], storage_queue)
 
-        reader.start()
+        writer =  mp.Process(target=writer_manager.writer_wrapper)
+        reader =  mp.Process(target=reader_manager.reader_wrapper)
+        scraper = mp.Process(target=hot_scraper_manager.hot_wrapper)
+
         writer.start()
+        reader.start()
         scraper.start()
 
     # allow parent thread to idle
