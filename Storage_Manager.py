@@ -49,7 +49,7 @@ class StorageManager(Process_Wrapper):
             file_name = f'Data/{set}/{sub_name}/{ticker[0]}_data_{set}.csv'
 
             df = self.read_csv(file_name, headers)
-            self.p(f'Read in: {df}')
+            #self.p(f'Read in: {df}')
 
             if self.now in df.index:
                 # If the timestamp already exists in the file, modify the value
@@ -59,7 +59,7 @@ class StorageManager(Process_Wrapper):
                 df = df.append(pd.DataFrame([ticker[1]], index=[self.now], columns=headers))
 
             # Write CSV with new timestamp and ticker score
-            self.p(f'Writing out: {df}')
+            #self.p(f'Writing out: {df}')
             df.to_csv(file_name, index=True, index_label='timestamp')
         
         # PART 2
@@ -68,17 +68,17 @@ class StorageManager(Process_Wrapper):
         headers = ['symbol', 'score']
 
         df = self.read_csv(file_name, headers)
-        self.p(f'Read in: {df}')
+        #self.p(f'Read in: {df}')
         
         for ticker in tickers:
             if self.now in df.index and ticker[0] in df.at[self.now, headers[0]]:
-                self.p(f'Index {self.now} - Symbol {ticker[0]} found, updating.')
+                #self.p(f'Index {self.now} - Symbol {ticker[0]} found, updating.')
                 tmp = pd.Series([df.at[self.now, headers[0]] + ticker[1]], name=headers[1], index=[self.now])
                 df.update(tmp)
             else:
                 df = df.append(pd.DataFrame([[ticker[0], ticker[1]]], index=[self.now], columns=headers))
         
-        self.p(f'Writing out: {df}')
+        #self.p(f'Writing out: {df}')
         df.to_csv(file_name, index=True, index_label='timestamp')
         
         self.file_mutex.release()
