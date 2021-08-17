@@ -183,19 +183,3 @@ def wait_for_next_hour():
     minutes_until_next_hour = 60 - datetime.datetime.now().minute
     time.sleep(60 * minutes_until_next_hour)
 
-#TODO
-def write_to_csv(tickers, set, sub):
-
-    frame = []
-    headers = ['dataset', 'symbol', 'score']
-
-    for ticker in tickers:
-        if ticker[1] <= 0:
-            break
-        row = ['Score', ticker[0], ticker[1]]
-        frame.append(row)
-
-
-    df = pd.DataFrame(frame, columns=headers)
-    df.to_csv('Data/Reddit-Stock-Scraper_'+ sub + '_' + set + '.csv', index=False)
-

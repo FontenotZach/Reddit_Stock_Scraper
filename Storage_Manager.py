@@ -1,6 +1,8 @@
 import multiprocessing as mp
 import os
-import queue
+import dataclasses
+
+from pandas.io.parsers import read_csv
 
 from Util import *
 
@@ -17,20 +19,16 @@ import pathlib
 #           'sub' - the Subreddit being scraped
 # /////////////////////////////////////////////////////////////////
 class StorageManager:
-    process_id = 0
-    file_mutex = 0
-    queue = 0
-
     WAIT_TIME = 60
 
-    debug = True
+    DEBUG = True
 
     def __init__(self, data_queue):
         self.file_mutex = mp.Lock()
         self.queue = data_queue
 
     def p(self, s):
-        if self.debug:
+        if self.DEBUG:
             print(f'SMAN {self.process_id}\t| {s}')
 
     def process_queue(self):
@@ -41,48 +39,50 @@ class StorageManager:
             while not self.queue.empty():
                 (tickers, set, sub_name) = self.queue.get()
                 self.write_data(tickers, set, sub_name)
+            self.p(f'Done. Sleeping for {self.WAIT_TIME} seconds.')
 
             time.sleep(self.WAIT_TIME)
 
 
     def write_data(self, tickers, set, sub_name):
-        self.p(f'Storage manager writing data for sub{sub_name}/{set}')
+        self.p(f'Writing data for sub {sub_name}/{set}')
 
         self.file_mutex.acquire()
+        now = datetime.datetime.now().isoformat('|', timespec='seconds')
+        
+        # PART 1
+        # THESE ARE PER-TICKER ['timestamp', 'score']
+        headers = ['date', 'score']
         # Write each ticker score to appropriate SymbolDirectory
         for ticker in tickers:
-            file_name = f'Data/{set}/{ticker[0]}_data_{set}.csv'
-            file_path = pathlib.Path(file_name)
+            file_name = f'Data/{set}/{sub_name}/{ticker[0]}_data_{set}.csv'
+
+            df = self.read_csv(file_name, headers)
+            df = df.append(pd.DataFrame([[now, ticker[1]]], columns=headers))
+
+            # Write CSV with new timestamp and ticker score
+            df.to_csv(file_name, index=False)
         
-            self.p(f'Storage manager checking and updating {file_name}')
-            updated_values = []
-            current_length = 0
-            index = int(get_index())
+        # PART 2
+        # Write the data to the subreddit file
+        file_name = f'Data/Reddit-Stock-Scraper_{sub_name}_{set}.csv'
+        headers = ['date', 'symbol', 'dataset', 'score']
 
-            if file_path.exists():
-                #TODO: Comment
-                self.p('Storage manager reading existing file {file_name}')
-                file = open(file_name, 'r')
-
-                reader = csv.reader(file)
-                values = list(reader)
-                current_length = len(values)
-
-                for row in values:
-                    updated_values.append(row[0])
-                file.close()
-
-            while len(updated_values) <= index:
-                updated_values.append(0)
-
-            updated_values[index] = float(updated_values[index]) + ticker[1]
-
-            self.p(f'Storage manager writing file {file_name}')
-            file = open(file_name, 'w')
-            writer = csv.writer(file, lineterminator='\n')
-            writer.writerows(map(lambda x: [x], updated_values))
-
-            file.close()
-
-            write_to_csv(tickers, set, sub_name)
+        df = self.read_csv(file_name, headers)
+        
+        for ticker in tickers:
+            df = df.append(pd.DataFrame([[now, ticker[0], set, ticker[1]]], columns=headers))
+            
+        df.to_csv(file_name, index=False)
+        
         self.file_mutex.release()
+
+
+    def read_csv(self, file_name, headers) -> pd.DataFrame:
+        if os.path.exists(file_name):
+            self.p(f'Storage manager checking and updating {file_name}')
+            return pd.read_csv(file_name)
+        else:
+            self.p(f'Storage manager creating {file_name}')
+            return pd.DataFrame(columns=headers)
+        
