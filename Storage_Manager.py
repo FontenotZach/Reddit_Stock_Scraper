@@ -59,12 +59,12 @@ class StorageManager(Process_Wrapper):
         # PART 2
         # Write the data to the subreddit file
         file_name = f'Data/Reddit-Stock-Scraper_{sub_name}_{set}.csv'
-        headers = ['date', 'symbol', 'dataset', 'score']
+        headers = ['date', 'symbol', 'score']
 
         df = self.read_csv(file_name, headers)
         
         for ticker in tickers:
-            df = df.append(pd.DataFrame([[now, ticker[0], set, ticker[1]]], columns=headers))
+            df = df.append(pd.DataFrame([[now, ticker[0], ticker[1]]], columns=headers))
             
         df.to_csv(file_name, index=False)
         
