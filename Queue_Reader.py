@@ -3,16 +3,16 @@ import random
 import time
 import os
 import multiprocessing as mp
+from Process_Wrapper import Process_Wrapper
 
 from Util import *
 from Storage_Manager import *
 from Comment_Info import *
 
-class Queue_Reader:
+class Queue_Reader(Process_Wrapper):
     # 60 Second wait period to let the queue fill up
     COOLDOWN_TIME = 50
-
-    DEBUG = True
+    PROCESS_TYPE_NAME = 'QREAD'
 
     # /////////////////////////////////////////////////////////////////
     #   Method:     __init__
@@ -27,18 +27,15 @@ class Queue_Reader:
         self.sub_name = sub_name
         self.comment_queue = comment_queue
         self.storage_queue = storage_queue
-    
-    def p(self, s):
-        if self.DEBUG:
-            print(f'COM {self.process_id}\t| {s}')
+
 
     # /////////////////////////////////////////////////////////////////
     #   Method:     reader_wrapper
     #   Purpose:    Manages stream_scraper_reader
     # /////////////////////////////////////////////////////////////////
     def reader_wrapper(self):
-        self.process_id = os.getpid()
-        print(f'COM {self.process_id}\t| Comment Queue reader started on {self.sub_name}')
+        self.PROCESS_ID = os.getpid()
+        print(f'{self.PROCESS_TYPE_NAME:6} {self.PROCESS_ID}\t| Comment Queue reader started on {self.sub_name}')
         
         # Run the reader script on a set schedule
         while True:

@@ -1,14 +1,17 @@
 import os
 import time
+from Process_Wrapper import Process_Wrapper
 
-class Queue_Watcher:
+class Queue_Watcher(Process_Wrapper):
     def __init__(self, queue, name, timeout=30):
         self.queue = queue
         self.name = name
         self.timeout = timeout
+        self.DEBUG = True
+        self.PROCESS_TYPE_NAME = 'QUEUE'
     
     def periodic_check(self):
-        self.process_id = os.getpid()
+        self.PROCESS_ID = os.getpid()
         while True:
-            print(f'QUE {self.process_id}\t| Queue {self.name}: {self.queue.qsize()}')
+            self.p(f'Queue {self.name}: {self.queue.qsize()}')
             time.sleep(self.timeout)

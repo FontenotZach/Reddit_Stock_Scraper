@@ -3,7 +3,6 @@ import signal
 import multiprocessing as mp
 
 from Util import *
-from QueueMessage import QueueMessage
 from Storage_Manager import StorageManager
 from Stream_Writer import Stream_Writer
 from Hot_Writer import Hot_Writer

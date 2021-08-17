@@ -1,13 +1,10 @@
 import multiprocessing as mp
 import os
-import dataclasses
+from Process_Wrapper import Process_Wrapper
 
 from pandas.io.parsers import read_csv
 
 from Util import *
-
-import csv
-import pathlib
 
 # /////////////////////////////////////////////////////////////////
 #   Method: storage_manager
@@ -18,21 +15,17 @@ import pathlib
 #               > TODO: convert to enum
 #           'sub' - the Subreddit being scraped
 # /////////////////////////////////////////////////////////////////
-class StorageManager:
+class StorageManager(Process_Wrapper):
     WAIT_TIME = 60
-
-    DEBUG = True
+    PROCESS_TYPE_NAME = 'SMAN'
 
     def __init__(self, data_queue):
         self.file_mutex = mp.Lock()
         self.queue = data_queue
 
-    def p(self, s):
-        if self.DEBUG:
-            print(f'SMAN {self.process_id}\t| {s}')
 
     def process_queue(self):
-        self.process_id = os.getpid()
+        self.PROCESS_ID = os.getpid()
 
         while True:
             self.p(f'Processing data queue: {self.queue.qsize()}')

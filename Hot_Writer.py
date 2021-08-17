@@ -1,17 +1,14 @@
 import praw
-import prawcore
-from prawcore.exceptions import PrawcoreException
 import os
 import time
 import multiprocessing as mp
+from Process_Wrapper import Process_Wrapper
 
-from Util import get_post_comments, comment_score
-
-class Hot_Writer:
+class Hot_Writer(Process_Wrapper):
     COOLDOWN_TIME = 3600    # Wait a full hour before scraping hot posts again
     SCRAPE_LIMIT = 30       # The number of top posts to scrape each hour
     COMMENT_TYPE = 'hot'
-    DEBUG = True
+    PROCESS_TYPE_NAME = 'HOT'
     
     # /////////////////////////////////////////////////////////////////
     #   Method: __init__
@@ -30,26 +27,21 @@ class Hot_Writer:
         self.subreddit = self.reddit.subreddit(self.sub_name)
 
 
-    def p(self, s):
-        if self.DEBUG:
-            print(f'HOT {self.process_id}\t| {s}')
-
-
     # /////////////////////////////////////////////////////////////////
     #   Method: hot_wrapper
     #   Purpose: Manages scrape_hot_posts
     # /////////////////////////////////////////////////////////////////
     def hot_wrapper(self):
-        self.process_id = os.getpid()
+        self.PROCESS_ID = os.getpid()
         
-        print(f'HOT {self.process_id}\t| {self.sub_name} hot post scraper started')
+        print(f'{self.PROCESS_TYPE_NAME:6} {self.PROCESS_ID}\t| {self.sub_name} hot post scraper started')
         
         while True:
             hot_scraper = mp.Process(target=self.scrape_hot_posts)
             hot_scraper.start()
             hot_scraper.join()
 
-            print(f'HOT {self.process_id}\t| Waiting for {self.COOLDOWN_TIME} seconds.')
+            self.p(f'Sleeping for {self.COOLDOWN_TIME} seconds.')
             time.sleep(self.COOLDOWN_TIME)
 
     # /////////////////////////////////////////////////////////////////

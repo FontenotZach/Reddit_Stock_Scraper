@@ -1,14 +1,13 @@
 import praw
-import prawcore
-from prawcore.exceptions import PrawcoreException
 import os
 import time
 import multiprocessing as mp
+from Process_Wrapper import Process_Wrapper
 
-class Stream_Writer:
+class Stream_Writer(Process_Wrapper):
     COOLDOWN_TIME = 5   # 5 second wait to let praw comment stream populate
-    DEBUG = True        # Enable printing debug messages
     COMMENT_TYPE = 'stream'
+    PROCESS_TYPE_NAME = 'STREAM'
 
     # /////////////////////////////////////////////////////////////////
     #   Method: __init__
@@ -26,17 +25,13 @@ class Stream_Writer:
         self.reddit = praw.Reddit("stockscraper")
         self.subreddit = self.reddit.subreddit(self.sub_name)
 
-    def p(self, s):
-        if self.DEBUG:
-            print(f'STR {self.process_id}\t| {s}')
-
     # /////////////////////////////////////////////////////////////////
     #   Method: writer_wrapper
     #   Purpose: Manages stream_scraper_writer
     # /////////////////////////////////////////////////////////////////
     def writer_wrapper(self):
-        self.process_id = os.getpid()
-        print(f'STR {self.process_id}\t| {self.sub_name} stream writer started')
+        self.PROCESS_ID = os.getpid()
+        print(f'{self.PROCESS_TYPE_NAME:6} {self.PROCESS_ID}\t| {self.sub_name} stream writer started')
 
         while True:
             self.p(f'Scraping stream from {self.sub_name}') 
@@ -44,7 +39,7 @@ class Stream_Writer:
             writer.start()
             writer.join()
 
-            self.p(f' Waiting for {self.COOLDOWN_TIME} seconds.')
+            self.p(f'Sleeping for {self.COOLDOWN_TIME} seconds.')
             time.sleep(self.COOLDOWN_TIME)
 
 
