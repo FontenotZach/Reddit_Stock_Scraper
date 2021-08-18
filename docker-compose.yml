@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  reddit_scraper:
+    image: reddit-scraper:latest
+    depends_on:
+      - database
+    environment:
+      SQL_HOST: database
+      SQL_USER: reddit-scraper
+      SQL_PASSWORD: ${SQL_PASSWORD}
+      SQL_DB: reddit-stock-scraper
+    command: ["./await_postgres.sh", "python", "WSB_Scraper.py"]
+
+  database:
+    image: postgres:alpine
+    restart: always
+    ports:
+      - 5432:5432
+    volumes:
+      - sql_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${SQL_PASSWORD}
+      POSTGRES_USER: reddit-scraper
+      POSTGRES_DB: reddit-stock-scraper
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+volumes:
+  sql_data:
