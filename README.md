@@ -20,6 +20,8 @@ Runs on most Linux distibutions
 
   - These are both installed with the Docker Desktop (Windows, MacOS), but must be installed individually on Linux.
 
+  - The container must first be built with `# docker build -t reddit-scraper .`
+
   - To run, simply use `# SQL_PASSWORD='[YOUR UNIQUE PASSWORD]' docker-compose up -d`, where [YOUR UNIQUE PASSWORD] is the password to use for the SQL server, in this case postgresql.
 
 ## Development:
