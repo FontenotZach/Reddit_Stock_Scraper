@@ -1,7 +1,6 @@
 from ftplib import FTP
-from configparser import ConfigParser
 import re
-
+import os
 import datetime
 import time
 import pandas as pd
@@ -14,17 +13,13 @@ from Comment_Info import *
 debug = False
 
 # Reads the sql database connection configuration information from the provided ini file
-def get_sql_config(file_name='database.ini', section='postgresql'):
-    parser = ConfigParser()
-    parser.read(file_name)
-
+def get_sql_config():
     db = {}
-    if parser.has_section(section):
-        params = parser.items(section)
-        for param in params:
-            db[param[0]] = param[1]
-    else:
-        raise Exception(f'Section {section} not found in config file {file_name}')
+
+    db['host'] = os.getenv('SQL_HOST')
+    db['database'] = os.getenv('SQL_DB')
+    db['user'] = os.getenv('SQL_USER')
+    db['password'] = os.getenv('SQL_PASSWORD')
 
     return db
 
@@ -180,12 +175,12 @@ def get_index():
     name = 'Data/start'
     fname = pathlib.Path(name)
     assert fname.exists(), f'File {name} does not exist!'
-    
+
     # If so, use its timestamp as the starting timestamp
     start_time = datetime.datetime.fromtimestamp(fname.stat().st_mtime)
     current_time = datetime.datetime.now()
     dif = current_time - start_time
-    
+
     # Calculate the number of hours since the start of the data gathering process
     total_hours = dif.total_seconds() / 3600
     if total_hours < 0:

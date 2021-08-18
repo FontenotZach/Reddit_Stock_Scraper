@@ -16,22 +16,20 @@ Runs on most Linux distibutions
   - Capable of processing ~600 thousand comments per hour on a Intel i7 8th gen processor
   
 ## Usage:
-- To run standalone, simply run `$ python3 WSB_Scraper.py`
-- For a safer, screen session, run `$ sh run.sh`
- - To create a Docker container:
-	1. Run `# docker build -t reddit-scraper .` to build the Docker image.
-	2. Create a folder 'Data' and change the ownership for the docker guest (UID:101,GID:101 (This can be found with the command `# docker run --rm reddit-scraper id wsb`)).
-	3. Then run `# docker create --name reddit-scraper --mount type=bind,source="$(pwd)"/Data,target=/scraper/Data reddit-scraper:latest` to create a Docker container from the image.
-	4. The container has been created, and can be started with `# docker run reddit-scraper`
-	5. The container's status can be viewed with the command `# docker ps -a`, and the data is stored in the Data folder (step 2)
-	6. The container can also be tested after building with the command `# docker run -it reddit-scraper`
+  - This project requires Docker and Docker Compose.
+
+  - These are both installed with the Docker Desktop (Windows, MacOS), but must be installed individually on Linux.
+
+  - The container must first be built with `# docker build -t reddit-scraper .`
+
+  - To run, simply use `# SQL_PASSWORD='[YOUR UNIQUE PASSWORD]' docker-compose up -d`, where [YOUR UNIQUE PASSWORD] is the password to use for the SQL server, in this case postgresql.
 
 ## Development:
-- This program is written in Python, and thus requires Python v3.8 or greater to be installed. Additionally, there are several python dependencies required for proper operation.
+  - This program is written in Python, and thus requires Python v3.8 or greater to be installed. Additionally, there are several python dependencies required for proper operation.
 
-- Using a Python virtual environment (venv) is advised. This requires pip (pip3) to be installed.
+  - Using a Python virtual environment (venv) is advised. This requires pip (pip3) to be installed.
 
-- ***Debian-based Distros:***
+  - ***Debian-based Distros:***
     1. To install pip, run `# apt install python3-pip`
     2. Then, install the Python virtual environment with `$ pip3 install virtualenv`
     3. Ensure you are in the Reddit_Stock_Scraper folder. (the folder with this README!) 
