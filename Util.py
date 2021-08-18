@@ -1,4 +1,5 @@
 from ftplib import FTP
+from configparser import ConfigParser
 import re
 
 import datetime
@@ -11,6 +12,21 @@ from Ticker import *
 from Comment_Info import *
 
 debug = False
+
+# Reads the sql database connection configuration information from the provided ini file
+def get_sql_config(file_name='database.ini', section='postgresql'):
+    parser = ConfigParser()
+    parser.read(file_name)
+
+    db = {}
+    if parser.has_section(section):
+        params = parser.items(section)
+        for param in params:
+            db[param[0]] = param[1]
+    else:
+        raise Exception(f'Section {section} not found in config file {file_name}')
+
+    return db
 
 #TODO: This seems to not do much, but take a long time to do so
 def get_post_comments(post, more_limit=50):
@@ -36,7 +52,7 @@ def comment_score(comment):
     remove_links(comment)
 
     if check_all_capitalized(comment):
-        return
+        return None
 
     clean_comment(comment)
 

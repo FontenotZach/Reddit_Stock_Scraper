@@ -29,7 +29,7 @@ def signal_handler(sig, frame):
 #   Purpose: Parent thread waiting and periodically error checking
 # /////////////////////////////////////////////////////////////////
 def idle():
-    print('MAIN: Idle')
+    print('Main: Idle')
     signal.signal(signal.SIGINT, signal_handler)
     while True:
         time.sleep(10)
@@ -80,7 +80,7 @@ if __name__ == '__main__':
         procs.append(mp.Process(target=comment_queue_watcher.periodic_check, name=f'{sub[0]}-q-watcher'))
 
     for proc in procs:
-        print(f'MAIN: Starting process {proc.name}')
+        print(f'Main: Starting process {proc.name}')
         proc.start()
 
     # allow parent thread to idle
