@@ -10,7 +10,7 @@ services:
       SQL_USER: reddit-scraper
       SQL_PASSWORD: ${SQL_PASSWORD}
       SQL_DB: reddit-stock-scraper
-    command: ["./await_postgres.sh", "python", "WSB_Scraper.py"]
+    command: ["./await_postgres.sh", "python3", "WSB_Scraper.py"]
 
   database:
     image: postgres:alpine

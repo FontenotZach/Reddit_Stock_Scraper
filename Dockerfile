@@ -1,5 +1,5 @@
-FROM amancevice/pandas:1.3.1-alpine
-RUN apk add --no-cache python3-dev py3-pip g++ gcc make postgresql-client postgresql-dev
+FROM alpine:latest
+RUN apk add --no-cache g++ python3-dev py3-pip postgresql-client postgresql-dev
 
 RUN addgroup -S wsb && adduser -S wsb -G wsb
 
@@ -7,7 +7,7 @@ RUN mkdir /scraper
 WORKDIR /scraper
 
 COPY requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY . .
 RUN chown -R wsb:wsb /scraper

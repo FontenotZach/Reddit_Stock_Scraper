@@ -3,8 +3,6 @@ import re
 import os
 import datetime
 import time
-import pandas as pd
-import numpy as np
 import pathlib
 
 from Ticker import *
