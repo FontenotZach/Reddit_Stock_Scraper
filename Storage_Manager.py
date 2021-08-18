@@ -1,11 +1,9 @@
-import multiprocessing as mp
 import os
-import queue
+import multiprocessing as mp
+import psycopg2 as psql
+from Process_Wrapper import Process_Wrapper
 
 from Util import *
-
-import csv
-import pathlib
 
 # /////////////////////////////////////////////////////////////////
 #   Method: storage_manager
@@ -16,73 +14,64 @@ import pathlib
 #               > TODO: convert to enum
 #           'sub' - the Subreddit being scraped
 # /////////////////////////////////////////////////////////////////
-class StorageManager:
-    process_id = 0
-    file_mutex = 0
-    queue = 0
-
-    WAIT_TIME = 60
-
-    debug = True
+class StorageManager(Process_Wrapper):
+    WAIT_TIME = 20
+    PROCESS_TYPE_NAME = 'SMAN'
 
     def __init__(self, data_queue):
         self.file_mutex = mp.Lock()
         self.queue = data_queue
 
-    def p(self, s):
-        if self.debug:
-            print(f'SMAN {self.process_id}\t| {s}')
 
     def process_queue(self):
-        self.process_id = os.getpid()
+        self.PROCESS_ID = os.getpid()
 
         while True:
             self.p(f'Processing data queue: {self.queue.qsize()}')
             while not self.queue.empty():
-                (tickers, set, sub_name) = self.queue.get()
-                self.write_data(tickers, set, sub_name)
+                (tickers, set_name, sub_name) = self.queue.get()
+                self.write_data(tickers=tickers, table=f'{sub_name}_{set_name}')
+            self.p(f'Done. Sleeping for {self.WAIT_TIME} seconds.')
 
             time.sleep(self.WAIT_TIME)
 
 
-    def write_data(self, tickers, set, sub_name):
-        self.p(f'Storage manager writing data for sub{sub_name}/{set}')
+    def write_data(self, tickers, table):
+        self.p(f'Writing data for sub {table}')
 
         self.file_mutex.acquire()
-        # Write each ticker score to appropriate SymbolDirectory
-        for ticker in tickers:
-            file_name = f'Data/{set}/{ticker[0]}_data_{set}.csv'
-            file_path = pathlib.Path(file_name)
+        current_hour_stamp = datetime.datetime.now().isoformat(timespec='hours')
+
+        # Open the database and try to write ticker values
+        conn = None
+        try:
+            conn = psql.connect(**get_sql_config())
+            cur = conn.cursor()
+
+            queries = []
+            
+            # Generate all necessary queries to insert or update data
+            for ticker in tickers:
+                query = f'SELECT score FROM {table} WHERE hour_stamp=\'{current_hour_stamp}\' AND ticker_symbol=\'{ticker[0]}\''
+                cur.execute(query)
+                res = cur.fetchone()
+                
+                # If there is already a value for this ticker and timestamp, then update it
+                if res is None:
+                    queries.append(f'INSERT INTO {table} (hour_stamp, ticker_symbol, score) VALUES (\'{current_hour_stamp}\', \'{ticker[0]}\', {ticker[1]})')
+                else:
+                    queries.append(f'UPDATE {table} SET score={res[0] + ticker[1]} WHERE hour_stamp=\'{current_hour_stamp}\' AND ticker_symbol=\'{ticker[0]}\'')
+            
+            # Then execute and commit them all
+            for q in queries:
+                self.p(q)
+                cur.execute(q)
+            conn.commit()
+
+        except Exception as e:
+            self.p(f'SQL Exception {e}')
+        finally:
+            if conn is not None:
+               conn.close()
         
-            self.p(f'Storage manager checking and updating {file_name}')
-            updated_values = []
-            current_length = 0
-            index = int(get_index())
-
-            if file_path.exists():
-                #TODO: Comment
-                self.p('Storage manager reading existing file {file_name}')
-                file = open(file_name, 'r')
-
-                reader = csv.reader(file)
-                values = list(reader)
-                current_length = len(values)
-
-                for row in values:
-                    updated_values.append(row[0])
-                file.close()
-
-            while len(updated_values) <= index:
-                updated_values.append(0)
-
-            updated_values[index] = float(updated_values[index]) + ticker[1]
-
-            self.p(f'Storage manager writing file {file_name}')
-            file = open(file_name, 'w')
-            writer = csv.writer(file, lineterminator='\n')
-            writer.writerows(map(lambda x: [x], updated_values))
-
-            file.close()
-
-            write_to_csv(tickers, set, sub_name)
         self.file_mutex.release()

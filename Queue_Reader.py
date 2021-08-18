@@ -3,20 +3,16 @@ import random
 import time
 import os
 import multiprocessing as mp
+from Process_Wrapper import Process_Wrapper
 
 from Util import *
 from Storage_Manager import *
 from Comment_Info import *
 
-class Stream_Reader:
+class Queue_Reader(Process_Wrapper):
     # 60 Second wait period to let the queue fill up
     COOLDOWN_TIME = 50
-    process_id = 0
-    sub_name = ''
-    comment_queue = 0
-    storage_queue = 0
-
-    debug = True
+    PROCESS_TYPE_NAME = 'QREAD'
 
     # /////////////////////////////////////////////////////////////////
     #   Method:     __init__
@@ -31,23 +27,20 @@ class Stream_Reader:
         self.sub_name = sub_name
         self.comment_queue = comment_queue
         self.storage_queue = storage_queue
-    
-    def p(self, s):
-        if self.debug:
-            print(f'SSR {self.process_id}\t| {s}')
+
 
     # /////////////////////////////////////////////////////////////////
     #   Method:     reader_wrapper
     #   Purpose:    Manages stream_scraper_reader
     # /////////////////////////////////////////////////////////////////
     def reader_wrapper(self):
-        self.process_id = os.getpid()
-        print(f'SSR {self.process_id}\t| Stream reader started on {self.sub_name}')
+        self.PROCESS_ID = os.getpid()
+        print(f'{self.PROCESS_TYPE_NAME:6} {self.PROCESS_ID}\t| Comment Queue reader started on {self.sub_name}')
         
         # Run the reader script on a set schedule
         while True:
             #start_time = datetime.datetime.now()
-            reader = mp.Process(target=self.stream_scraper_reader)
+            reader = mp.Process(target=self.comment_queue_reader)
             reader.start()
             reader.join()
 
@@ -63,50 +56,47 @@ class Stream_Reader:
 
 
     # /////////////////////////////////////////////////////////////////
-    #   Method:     stream_scraper_reader
+    #   Method:     comment_queue_reader
     #   Purpose:    Collect live reddit comments and pass them to queue
     # /////////////////////////////////////////////////////////////////
-    def stream_scraper_reader(self):
-        
-        # Wait for between 5 and 10 seconds to begin processing
-        #n = (random.random() * 5.0) + 5.0
-        #print(f'SSR {self.process_id}\t| Waiting {n:.2f} seconds before processing stream from {self.sub_name}')
-        #time.sleep(n)
-        
-        self.p(f'Begin processing stream from {self.sub_name}')
+    def comment_queue_reader(self):
+        if self.comment_queue.empty():
+            self.p(f'{self.sub_name}: no comments')
+            return
 
+        self.p(f'{self.sub_name}: {self.comment_queue.qsize()} total comments collected')
         comments_processed = 0  # total comments processed
-        tickers = {}            #dictionary of tickers (key: symbol, value: score)
-        self.p(f'{self.sub_name} {self.comment_queue.qsize()} comments collected')
-        #print(f'SSR {thread_native_id}\t| queue: {q}')
+        tickers = {'hot':{}, 'stream':{}} # dictionary of tickers (key: symbol, value: score)
+
         # Pops all comments each hour until queue is empty
         while not self.comment_queue.empty():
             # Checks if there is a comment to get
+            # Comment Queue: Queue(Tuple(string, comment))
             r_comment = self.comment_queue.get()
-
+            
             comments_processed += 1
-            comment = Comment_Info(r_comment.body, -1, r_comment.score)
+            comment = Comment_Info(r_comment[1].body, -1, r_comment[1].score)
             ticker_result = comment_score(comment)
 
             if ticker_result is not None:
+                ticker_type = r_comment[0]
                 # Pulls out metion data and comglomerates for each ticker
                 for new_ticker in ticker_result:
                     symbol = new_ticker.symbol
-                    if symbol in tickers:
-                        tickers[symbol] = tickers[symbol] + new_ticker.score
+                    if symbol in tickers[ticker_type]:
+                        tickers[ticker_type][symbol] = tickers[ticker_type][symbol] + new_ticker.score
                     else:
-                        tickers[symbol] = new_ticker.score
+                        tickers[ticker_type][symbol] = new_ticker.score
         # End queue processing loop
 
-        
-
         # End Comment processing
-        # Sort the tickers into a list of tuples (symbol, score)
-        sorted_tickers = sorted(tickers.items(), key=lambda x:x[1], reverse=True)
-        self.p(f'Queue reader processed {comments_processed} comments from {self.sub_name}, got {len(sorted_tickers)} results')
-        
-        # Try writing data to file
-        if len(sorted_tickers) != 0:
-            data = (sorted_tickers, 'stream', self.sub_name)
-            self.storage_queue.put(data)
+        for key in tickers:
+            if tickers[key] is not None:
+                # Sort the tickers into a list of tuples (symbol, score)
+                sorted_tickers = sorted(tickers[key].items(), key=lambda x:x[1], reverse=True)
+
+                if len(sorted_tickers) != 0:
+                    self.p(f'Queue reader processed {comments_processed} {key} comments from {self.sub_name}, got {len(sorted_tickers)} ticker result(s)')
+                    data = (sorted_tickers, key, self.sub_name)
+                    self.storage_queue.put(data)
         

@@ -3,28 +3,12 @@ import signal
 import multiprocessing as mp
 
 from Util import *
-from Log import *
-from QueueMessage import *
-from Storage_Manager import *
-from Stream_Writer import *
-from Stream_Reader import *
-from Scrape_Hot_Posts import *
-
+from Storage_Manager import StorageManager
+from Stream_Writer import Stream_Writer
+from Hot_Writer import Hot_Writer
+from Queue_Reader import Queue_Reader
+from Queue_Watcher import Queue_Watcher
 from Init import initialize
-
-# /////////////////////////////////////////////////////////////////
-#   Method: queue_report
-#   Purpose: Collect live reddit comments and pass them to queue
-#   Inputs:
-#           'q' - ref to comment queue
-#           'sub' - the Subreddit being scraped
-# /////////////////////////////////////////////////////////////////
-def queue_report(q, sub):
-    # sleeps for a minute then reports # of comments in queue
-    while True:
-        time.sleep(60)
-        print('SSW ', os.getpid()(), '\t| ', end='')
-        print(f'{q.qsize()} {sub} comments currently in stream queue')
 
 
 # /////////////////////////////////////////////////////////////////
@@ -45,7 +29,7 @@ def signal_handler(sig, frame):
 #   Purpose: Parent thread waiting and periodically error checking
 # /////////////////////////////////////////////////////////////////
 def idle():
-    print('MAIN: Idle')
+    print('Main: Idle')
     signal.signal(signal.SIGINT, signal_handler)
     while True:
         time.sleep(10)
@@ -57,52 +41,47 @@ def idle():
 #   Purpose: Starting point
 # /////////////////////////////////////////////////////////////////
 if __name__ == '__main__':
-    # Run initialization TODO: Merge more into this
-    initialize()
-    mp.set_start_method('spawn')
-
-    # Start log
-    logger = Log()
-    # Start storage manager
-    storage_queue = mp.Queue() 
-    storage_manager = StorageManager(storage_queue)
-    sm = mp.Process(target=storage_manager.process_queue)
-    sm.start()
-
-    # Setup Reddit instance
-    # TODO: Look into PRAW multithread support
-    #reddit = praw.Reddit("stockscraper")
-
+    procs = []
     # List of subreddit names
     subreddits = [ 'wallstreetbets', 'investing', 'stocks', 'pennystocks' ]
 
-    # These are formed into a list of Tuples with the form (subreddit_name, subreddit_instance, stream_instance, stream_queue)
+    # Run initialization TODO: Merge more into this
+    initialize(subreddits)
+    mp.set_start_method('spawn')
+
+    # Start storage manager
+    storage_queue = mp.Queue() 
+    storage_manager = StorageManager(storage_queue)
+    procs.append(mp.Process(target=storage_manager.process_queue, name='storage-manager'))
+    
+    # Start another thread to watch the storage queue
+    storage_watcher = Queue_Watcher(storage_queue, 'storage-queue')
+    procs.append(mp.Process(target=storage_watcher.periodic_check, name='storage-q-watcher'))
+    
+    # These are formed into a list of Tuples with the form (subreddit_name, stream_queue)
     subreddit_list = []
 
     for sub_name in subreddits:
-        #sub = reddit.subreddit(sub_name)
         empty_queue = mp.Queue()
-        #sub_tuple = (sub_name, sub, sub.stream.comments(skip_existing=True), empty_queue)
-        sub_tuple = (sub_name, empty_queue)
-        subreddit_list.append(sub_tuple)
+        subreddit_list.append((sub_name, empty_queue))
 
     # Starting processes for stream_scraper_writer, scrape_hot_posts, and stream_scraper_reader
     # Each new sub needs one thread for each method
     for sub in subreddit_list:
-        print(f'MAIN: Starting processes for {sub[0]}')
-
         # Create the wrapper objects for each thread
-        reader_manager = Stream_Reader(sub[1], sub[0], storage_queue)
-        writer_manager = Stream_Writer(sub[1], sub[0])
-        hot_scraper_manager = Scrape_Hot_Posts(sub[0], storage_queue)
+        comment_queue_reader    = Queue_Reader(sub[1], sub[0], storage_queue)
+        stream_comment_manager  = Stream_Writer(sub[1], sub[0])
+        hot_comment_manager     = Hot_Writer(sub[1], sub[0])
+        comment_queue_watcher   = Queue_Watcher(sub[1], f'{sub[0]}-comments')
 
-        writer =  mp.Process(target=writer_manager.writer_wrapper)
-        reader =  mp.Process(target=reader_manager.reader_wrapper)
-        scraper = mp.Process(target=hot_scraper_manager.hot_wrapper)
+        procs.append(mp.Process(target=comment_queue_reader.reader_wrapper, name=f'{sub[0]}-q-reader'))
+        procs.append(mp.Process(target=stream_comment_manager.writer_wrapper, name=f'{sub[0]}-stream-scraper'))
+        procs.append(mp.Process(target=hot_comment_manager.hot_wrapper, name=f'{sub[0]}-hot-scraper'))
+        procs.append(mp.Process(target=comment_queue_watcher.periodic_check, name=f'{sub[0]}-q-watcher'))
 
-        writer.start()
-        reader.start()
-        scraper.start()
+    for proc in procs:
+        print(f'Main: Starting process {proc.name}')
+        proc.start()
 
     # allow parent thread to idle
     idle()
