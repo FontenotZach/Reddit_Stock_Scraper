@@ -1,5 +1,5 @@
 FROM amancevice/pandas:1.3.1-alpine
-RUN apk add --no-cache python3-dev py3-pip g++ gcc make
+RUN apk add --no-cache python3-dev py3-pip g++ gcc make postgresql-libs postgresql-dev
 
 RUN addgroup -S wsb && adduser -S wsb -G wsb
 
