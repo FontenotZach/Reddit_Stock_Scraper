@@ -1,17 +1,17 @@
-﻿# Reddit_Stock_Scraper
+﻿# Reddit Stock Scraper
 Scrapes Reddit posts and streams new comments to track market trends.
 Runs on most Linux distibutions
 
 ## Quick info:
-  - Highly threaded reddit scraper which runs indefinitely and collects stock mention data from r/wallstreetbets, r/investing, r/stocks, and r/pennystocks
+  - Highly parallel reddit scraper which runs indefinitely and collects stock mention data from r/wallstreetbets, r/investing, r/stocks, and r/pennystocks
   
   - Optimized algorithm cleans comments to avoid use of slow regular expressions
   
-  - Hardy to manipulation
+  - Hardy to external manipulation
   
-  - Modular design allows new subs to be added with just a few lines of code
+  - Modular design allows new subs to be added with just a single new string
   
-  - Optimized data storage unit which can store a year's worth of data in ~150 MB
+  - Optimized SQL-based data storage system to allow advanced data analysis
   
   - Capable of processing ~600 thousand comments per hour on a Intel i7 8th gen processor
   
@@ -24,10 +24,18 @@ Runs on most Linux distibutions
 
   - To run, simply use `# SQL_PASSWORD='[YOUR UNIQUE PASSWORD]' docker-compose up -d`, where [YOUR UNIQUE PASSWORD] is the password to use for the SQL server, in this case postgresql.
 
+  - To stop and remove the containers, use `# docker-compose down`
+
+  - To also remove the persistent SQL database, instead use `# docker-compose down --volumes` (WARNING: THIS WILL RESULT IN LOSS OF HISTORICAL TICKER DATA)
+
 ## Development:
   - This program is written in Python, and thus requires Python v3.8 or greater to be installed. Additionally, there are several python dependencies required for proper operation.
 
   - Using a Python virtual environment (venv) is advised. This requires pip (pip3) to be installed.
+
+  - ***Docker (Preferred):***
+    1. Install and start Docker (desktop, daemon, etc.)
+    2. Make changes, then build the Docker container and deploy (or remove and deploy) with docker-compose (See Usage)
 
   - ***Debian-based Distros:***
     1. To install pip, run `# apt install python3-pip`
@@ -37,11 +45,6 @@ Runs on most Linux distibutions
     5. Enter the environment with `$ source .venv/bin/activate`
     6. Finally, install all required modules with `$ pip3 install -r requirements.txt`
     
- - ***Alternative:***
-    1. Install Docker (desktop, daemon, etc.)
-    2. Start Docker
-    3. Make changes, then use Docker instructions to run container
-
 ## Future plans:
   - Integrate robust algorithm to find trending tickers and report them
   
