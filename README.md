@@ -20,8 +20,6 @@ Runs on most Linux distibutions
 
   These are both installed with the Docker Desktop (Windows, MacOS), but must be installed individually on Linux.
 
-  The container must first be built with `# docker build -t reddit-scraper .`
-
   To run, use `# SQL_PASSWORD='[PASSWORD]' PRAW_CLIENT_ID='[ID]' PRAW_CLIENT_SECRET='[SECRET]' docker-compose up -d` where [PASSWORD] is the password for the SQL server, [ID] is your Reddit OAUTH ID, and [SECRET] is your Reddit OAUTH Secret.
 
   To stop and remove the containers, use `# docker-compose down`
@@ -35,7 +33,9 @@ Runs on most Linux distibutions
 
   ***Docker (Preferred):***
   1. Install and start Docker (desktop, daemon, etc.)
-  2. Make changes, then build the Docker container and deploy (or remove and deploy) with docker-compose (See Usage)
+  2. Make changes, then build the Docker container with `# docker build -t reddit-scraper .`
+  3. Modify the docker-compose file, changing `johnathanburns/reddit-scraper:latest` to `reddit-scraper:latest`
+  4. Follow the Usage instructions to then run the containers
 
   ***Debian-based Distros:***
   1. To install pip, run ```# apt install python3-pip```

@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   reddit_scraper:
-    image: reddit-scraper:latest
+    image: johnathanburns/reddit-scraper:latest
     depends_on:
       - database
     environment:
