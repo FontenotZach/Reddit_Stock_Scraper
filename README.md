@@ -22,7 +22,7 @@ Runs on most Linux distibutions
 
   The container must first be built with `# docker build -t reddit-scraper .`
 
-  To run, simply use `# SQL_PASSWORD='[YOUR UNIQUE PASSWORD]' docker-compose up -d` where [YOUR UNIQUE PASSWORD] is the password to use for the SQL server, in this case postgresql.
+  To run, use `# SQL_PASSWORD='[PASSWORD]' PRAW_CLIENT_ID='[ID]' PRAW_CLIENT_SECRET='[SECRET]' docker-compose up -d` where [PASSWORD] is the password for the SQL server, [ID] is your Reddit OAUTH ID, and [SECRET] is your Reddit OAUTH Secret.
 
   To stop and remove the containers, use `# docker-compose down`
 

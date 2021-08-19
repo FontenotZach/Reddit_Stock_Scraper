@@ -23,7 +23,11 @@ class Hot_Writer(Process_Wrapper):
         self.comment_queue = comment_queue
         
         # Each process that scrapes reddit needs its own instance of praw
-        self.reddit = praw.Reddit("stockscraper")
+        self.reddit = praw.Reddit(
+            client_id = os.getenv('praw_client_id'),
+            client_secret = os.getenv('praw_client_secret'),
+            user_agent='Reddit Stock Scraper v0.5 by FontenotZ, JBurns',
+        )
         self.subreddit = self.reddit.subreddit(self.sub_name)
 
 
