@@ -68,7 +68,7 @@ class StorageManager(Process_Wrapper):
             # Generate all necessary queries to insert or update data
             for ticker in tickers:
                 identifier = f'{current_hour}_{ticker[0]}'
-                query = f'SELECT score FROM {table} WHERE identifier_stamp=\'{identifier}\''
+                query = f'SELECT score FROM {table} WHERE time_ticker_identifier=\'{identifier}\''
                 cur.execute(query)
                 res = cur.fetchone()
                 
@@ -76,7 +76,7 @@ class StorageManager(Process_Wrapper):
                 if res is None:
                     queries.append(f'INSERT INTO {table} (time_ticker_identifier, score) VALUES (\'{identifier}\', {ticker[1]})')
                 else:
-                    queries.append(f'UPDATE {table} SET score={res[0] + ticker[1]} WHERE identifier_stamp=\'{identifier}\'')
+                    queries.append(f'UPDATE {table} SET score={res[0] + ticker[1]} WHERE time_ticker_identifier=\'{identifier}\'')
             
             # Then execute and commit them all
             for q in queries:
