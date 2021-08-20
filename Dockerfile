@@ -11,7 +11,8 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY . .
 RUN chown -R wsb:wsb /scraper
+RUN chmod u+x /scraper/await_postgres.sh
 
 USER wsb
 
-CMD ["python3", "WSB_Scraper.py"]
+CMD ["./await_postgres.sh", "python3", "WSB_Scraper.py"]

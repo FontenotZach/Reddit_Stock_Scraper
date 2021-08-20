@@ -1,4 +1,6 @@
-Log
-Data
 __pycache__
+.git
 .gitignore
+.dockerignore
+Dockerfile
+set-exports.sh

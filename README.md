@@ -20,11 +20,13 @@ Runs on most Linux distibutions
 
   These are both installed with the Docker Desktop (Windows, MacOS), but must be installed individually on Linux.
 
-  To run, use `# SQL_PASSWORD='[PASSWORD]' PRAW_CLIENT_ID='[ID]' PRAW_CLIENT_SECRET='[SECRET]' docker-compose up -d` where [PASSWORD] is the password for the SQL server, [ID] is your Reddit OAUTH ID, and [SECRET] is your Reddit OAUTH Secret.
+  The configuration is primarily stored in the file `set-exports.sh`. You should store your SQL password and PRAW credentials there.
 
-  To stop and remove the containers, use `# docker-compose down`
-
-  To also remove the persistent SQL database, instead use `# docker-compose down --volumes` (WARNING: THIS WILL RESULT IN LOSS OF HISTORICAL TICKER DATA)
+  1. To use the configuration stored in the file, run `source ./set-exports.sh`.
+  2. To verify, run `echo $PRAW_CLIENT_ID`. If your ID is printed to the screen, then the settings have been applied for this session.
+  3. To create and run the containers, use `# docker-compose up -d`
+  4. To stop and remove the containers, use `# docker-compose down`
+  5. ***OPTIONAL:*** To also remove the persistent SQL database, instead use `# docker-compose down --volumes` (WARNING: THIS WILL RESULT IN LOSS OF HISTORICAL TICKER DATA)
 
 ## Development:
   This program is written in Python, and thus requires Python v3.8 or greater to be installed. Additionally, there are several python dependencies required for proper operation.
