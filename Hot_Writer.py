@@ -7,8 +7,9 @@ from Process_Wrapper import Process_Wrapper
 class Hot_Writer(Process_Wrapper):
     COOLDOWN_TIME = 3600    # Wait a full hour before scraping hot posts again
     SCRAPE_LIMIT = 30       # The number of top posts to scrape each hour
+    PRINT_FREQUENCY = 500   # Print something for every 500 comments scraped
     COMMENT_TYPE = 'hot'
-    PROCESS_TYPE_NAME = 'HOT'
+    PROCESS_TYPE_NAME = 'HOTW'
     
     # /////////////////////////////////////////////////////////////////
     #   Method: __init__
@@ -53,6 +54,8 @@ class Hot_Writer(Process_Wrapper):
     #   Purpose: Collects comments from hottest Subreddit posts
     # /////////////////////////////////////////////////////////////////
     def scrape_hot_posts(self):
+        comments_scraped = 0
+
         for submission in self.subreddit.hot(limit=self.SCRAPE_LIMIT):
             self.p(f'Getting all comments from {self.sub_name} -> {submission.title[:30]}')
             
@@ -61,4 +64,7 @@ class Hot_Writer(Process_Wrapper):
             
             for r_comment in submission.comments:
                 self.comment_queue.put((self.COMMENT_TYPE, r_comment))
+                comments_scraped += 1
+                if comments_scraped % self.PRINT_FREQUENCY == 0:
+                    self.p(f'{comments_scraped} comments scraped from the {self.sub_name} stream')
             

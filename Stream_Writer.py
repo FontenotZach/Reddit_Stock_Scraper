@@ -5,9 +5,10 @@ import multiprocessing as mp
 from Process_Wrapper import Process_Wrapper
 
 class Stream_Writer(Process_Wrapper):
-    COOLDOWN_TIME = 5   # 5 second wait to let praw comment stream populate
+    COOLDOWN_TIME = 5       # 5 second wait to let praw comment stream populate
+    PRINT_FREQUENCY = 500   # Print something for every 500 comments scraped
     COMMENT_TYPE = 'stream'
-    PROCESS_TYPE_NAME = 'STREAM'
+    PROCESS_TYPE_NAME = 'STRW'
 
     # /////////////////////////////////////////////////////////////////
     #   Method: __init__
@@ -52,8 +53,13 @@ class Stream_Writer(Process_Wrapper):
     #   Purpose: Processes queue of streamed comments into a comment queue
     # /////////////////////////////////////////////////////////////////
     def stream_scraper_writer(self):
+        comments_scraped = 0
+
         stream = self.subreddit.stream.comments(skip_existing=True)
 
         for r_comment in stream:
             if r_comment is not None:
                 self.comment_queue.put((self.COMMENT_TYPE, r_comment))
+                comments_scraped += 1
+                if comments_scraped % self.PRINT_FREQUENCY == 0:
+                    self.p(f'{comments_scraped} comments scraped from the {self.sub_name} stream')

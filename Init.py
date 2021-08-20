@@ -6,9 +6,14 @@ from Util import get_sql_config
 # Set this to True to print whenever a folder/file is tested
 debug = True
 
+# /////////////////////////////////////////////////////////////////
+#   Method: p
+#   Purpose: Print something only when debug is set to True
+# /////////////////////////////////////////////////////////////////
 def p(s):
     if(debug):
         print(f'Init: {s}')
+
 
 # /////////////////////////////////////////////////////////////////
 #   Method: initialize
@@ -16,11 +21,17 @@ def p(s):
 # /////////////////////////////////////////////////////////////////
 def initialize(subreddits):
 
-    test_db(subreddits, get_sql_config())
-    #test_files(subreddits)
+    test_db_connection(subreddits, get_sql_config())
+    #test_file_permissions(subreddits)
     return
 
-def test_db(subreddits, config):
+
+# /////////////////////////////////////////////////////////////////
+#   Method: test_db
+#   Purpose: Ensures all database tables exist on the remote database
+# /////////////////////////////////////////////////////////////////
+def test_db_connection(subreddits, config):
+    #TODO: Move these into a seperate program configuration header
     table_check = '''
     SELECT EXISTS (
     SELECT FROM information_schema.tables 
@@ -31,34 +42,38 @@ def test_db(subreddits, config):
 
     table_create = '''
     CREATE TABLE {} (
-    ticker_symbol CHAR(4),
-    hour_stamp VARCHAR(13) NOT NULL,
+    time_ticker_identifier VARCHAR(20) PRIMARY KEY,
     score FLOAT
     );
     '''
 
-    commands = []
+    # Build a list of tuples with the necessary SQL commands to create all tables
+    command_pairs = []
     for sub in subreddits:
-        commands.append( (f'{sub}_hot', table_check.format(f'{sub}_hot'), table_create.format(f'{sub}_hot')) )
-        commands.append( (f'{sub}_stream', table_check.format(f'{sub}_stream'), table_create.format(f'{sub}_stream')) )
+        table_name = f'{sub}_hot'
+        command_pairs.append( (table_name, table_check.format(table_name), table_create.format(table_name)) )
+        table_name = f'{sub}_stream'
+        command_pairs.append( (table_name, table_check.format(table_name), table_create.format(table_name)) )
     
     conn = None
     try:
-        p(f'Connecting to SQL server with string: {config}')
+        p(f'Connecting to SQL server with options: {config}')
         conn = psql.connect(**config)
         cur = conn.cursor()
 
         # Create all necessary tables
-        for command_pair in commands:
+        for command_pair in command_pairs:
             cur.execute(command_pair[1])
             exists = cur.fetchone()[0]
 
+            # Check if a table exists, and if not create it
             if exists:
                 p(f'Table {command_pair[0]} exists')
             else:
                 p(f'Table {command_pair[0]} does not exist, creating')
                 cur.execute(command_pair[2])
-                conn.commit()
+
+        conn.commit()
     except Exception as e:
         p(f'ERROR: {e}')
         exit(1)
@@ -66,9 +81,14 @@ def test_db(subreddits, config):
         if conn is not None:
             conn.close()
 
-    pass
+    return
 
-def test_files(subreddits):
+
+# /////////////////////////////////////////////////////////////////
+# Method: test_files
+# Purpose: Ensures proper folder layout exists
+# /////////////////////////////////////////////////////////////////
+def test_file_permissions(subreddits):
     # Check for proper folder layout
     full_folders = []
     folders = ['Data/hot', 'Data/stream']
