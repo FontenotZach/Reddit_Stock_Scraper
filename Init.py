@@ -31,7 +31,7 @@ def test_db(subreddits, config):
 
     table_create = '''
     CREATE TABLE {} (
-    ticker_symbol CHAR(4) PRIMARY KEY,
+    ticker_symbol CHAR(4),
     hour_stamp VARCHAR(13) NOT NULL,
     score FLOAT
     );
