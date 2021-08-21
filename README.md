@@ -20,9 +20,9 @@ Runs on most Linux distibutions
 
   These are both installed with the Docker Desktop (Windows, MacOS), but must be installed individually on Linux.
 
-  The configuration is primarily stored in the file `set-exports.sh`. You should store your SQL password and PRAW credentials there.
+  The configuration is primarily stored in the file `set-exports.sh` or `set-exports.ps1` for *nix and Windows, respectively. You should store your SQL password and PRAW credentials there.
 
-  1. To use the configuration stored in the file, run `source ./set-exports.sh`.
+  1. To use the configuration stored in the file, run `source ./set-exports.sh` on *nix or `.\set-exports.ps1` in Powershell on Windows. (Note: if you get a permissions error on Windows, you likely need to enable custom scripts with the command `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Unrestricted -Force`. Note that this also allows all scripts downloaded from the internet to run, and so should be used with caution.)
   2. To verify, run `echo $PRAW_CLIENT_ID`. If your ID is printed to the screen, then the settings have been applied for this session.
   3. To create and run the containers, use `# docker-compose up -d`
   4. To stop and remove the containers, use `# docker-compose down`
