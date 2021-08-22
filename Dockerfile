@@ -15,4 +15,4 @@ RUN chmod u+x /scraper/await_postgres.sh
 
 USER wsb
 
-CMD ["./await_postgres.sh", "python3", "Main.py"]
+CMD ["./await_postgres.sh", "python3", "./Main.py"]

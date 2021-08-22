@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   reddit_scraper:
-    image: johnathanburns/reddit-scraper:latest
+    image: reddit-scraper:latest
     restart: unless-stopped
     depends_on:
       - database
