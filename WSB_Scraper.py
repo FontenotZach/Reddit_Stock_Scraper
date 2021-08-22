@@ -47,7 +47,7 @@ if __name__ == '__main__':
 
     # Run initialization TODO: Merge more into this
     initialize(subreddits)
-    mp.set_start_method('fork')
+    mp.set_start_method('spawn')
     storage_queue = mp.Queue()
     comment_queue = mp.Queue()
 

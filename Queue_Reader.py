@@ -1,5 +1,3 @@
-import datetime
-import random
 import time
 import os
 import multiprocessing as mp
@@ -10,10 +8,8 @@ from Storage_Manager import *
 from Comment_Info import *
 
 class Queue_Reader(Process_Wrapper):
-    # ~120 Second wait period to let the queue fill up
-    COOLDOWN_TIME = 110.0
-    COOLDOWN_SPREAD = 20.0
-    NUM_PROCESSES = 12
+    # ~30 Second wait period to let the queue fill up
+    COOLDOWN_TIME = 10
     PROCESS_TYPE_NAME = 'QREAD'
 
     # /////////////////////////////////////////////////////////////////
@@ -43,14 +39,10 @@ class Queue_Reader(Process_Wrapper):
         # Run the reader script on a set schedule
         while True:
             if not self.comment_queue.empty():
-                with mp.Pool(processes=self.NUM_PROCESSES) as pool:
-                    reader = mp.Process(target=self.comment_queue_reader)
-                    reader.start()
-                    reader.join()
-
-            t = self.COOLDOWN_TIME + (random.random() * self.COOLDOWN_SPREAD)
-            self.thread_print(f'Sleeping for {t:.2f} seconds')
-            time.sleep(t)
+                reader = mp.Process(target=self.comment_queue_reader)
+                reader.start()
+                reader.join()
+            time.sleep(self.COOLDOWN_TIME)
 
 
     # /////////////////////////////////////////////////////////////////
@@ -85,7 +77,7 @@ class Queue_Reader(Process_Wrapper):
         while not self.comment_queue.empty():
             # Checks if there is a comment to get
             # Comment Queue: Queue(Tuple(string, string, comment))
-            r_comment = self.comment_queue.get()
+            r_comment = self.comment_queue.get(timeout=1)
             
             comments_processed += 1
             comment = Comment_Info(r_comment[2].body, -1, r_comment[2].score)
@@ -103,6 +95,8 @@ class Queue_Reader(Process_Wrapper):
                     else:
                         tickers[ticker_category][ticker_sub][symbol] = new_ticker.score
         # End queue processing loop
+
+        self.thread_print(f'Processed {comments_processed} comments.')
 
         # send comment data to the storage manager
         for category, category_dict in tickers.items():

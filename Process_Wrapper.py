@@ -11,4 +11,4 @@ class Process_Wrapper:
             self.thread_print(str)
 
     def thread_print(self, str):
-        print(f'{self.PROCESS_TYPE_NAME[:5]:5} {self.PROCESS_ID:5} {self.sub_name[:5]:5} | {str}')
+        print(f'{self.PROCESS_TYPE_NAME[:5]:5} {self.PROCESS_ID:5} {self.sub_name[:8]:8} | {str}')

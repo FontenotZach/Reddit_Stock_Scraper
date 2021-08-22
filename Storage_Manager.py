@@ -32,7 +32,7 @@ class StorageManager(Process_Wrapper):
         self.thread_print('Started storage manager')
 
         while True:
-            self.debug_print(f'Processing data queue with {self.queue.qsize()} items.')
+            self.debug_print(f'Processing data queue with {self.queue.qsize()} different data sources.')
             if not self.queue.empty():
                 pq = mp.Process(target=self.process_queue)
                 pq.start()
