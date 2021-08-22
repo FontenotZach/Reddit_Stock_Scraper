@@ -4,7 +4,7 @@ import psycopg2 as psql
 from Util import get_sql_config
 
 # Set this to True to print whenever a folder/file is tested
-debug = True
+debug = False
 
 # /////////////////////////////////////////////////////////////////
 #   Method: p
@@ -75,7 +75,7 @@ def test_db_connection(subreddits, config):
 
         conn.commit()
     except Exception as e:
-        p(f'ERROR: {e}')
+        print(f'Init ERROR: {e}')
         exit(1)
     finally:
         if conn is not None:

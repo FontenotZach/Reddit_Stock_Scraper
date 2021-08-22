@@ -1,17 +1,24 @@
 import os
 import time
+import multiprocessing as mp
 from Process_Wrapper import Process_Wrapper
 
 class Queue_Watcher(Process_Wrapper):
-    def __init__(self, queue, name, timeout=30):
+    PROCESS_TYPE_NAME = 'QUEUE'
+    COOLDOWN_TIME = 90
+
+    def __init__(self, queue, name):
+        Process_Wrapper.__init__(self)
         self.queue = queue
-        self.name = name
-        self.timeout = timeout
-        self.DEBUG = True
-        self.PROCESS_TYPE_NAME = 'QUEUE'
+        self.sub_name = name
     
-    def periodic_check(self):
+    def watch_queue(self):
         self.PROCESS_ID = os.getpid()
+        self.thread_print(f'Starting watcher for {self.sub_name} queue.')
+
         while True:
-            self.p(f'Queue {self.name}: {self.queue.qsize()}')
-            time.sleep(self.timeout)
+            watcher = mp.Process(target=self.thread_print, args=(f'Queue size: {self.queue.qsize()}',))
+            watcher.start()
+            watcher.join()
+
+            time.sleep(self.COOLDOWN_TIME)

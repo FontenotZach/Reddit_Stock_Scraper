@@ -10,8 +10,10 @@ from Storage_Manager import *
 from Comment_Info import *
 
 class Queue_Reader(Process_Wrapper):
-    # 60 Second wait period to let the queue fill up
-    COOLDOWN_TIME = 50
+    # ~120 Second wait period to let the queue fill up
+    COOLDOWN_TIME = 110.0
+    COOLDOWN_SPREAD = 20.0
+    NUM_PROCESSES = 12
     PROCESS_TYPE_NAME = 'QREAD'
 
     # /////////////////////////////////////////////////////////////////
@@ -19,14 +21,14 @@ class Queue_Reader(Process_Wrapper):
     #   Purpose:    Initializes class variables
     #   Inputs:
     #       'comment_queue' - A queue holding comments to process
-    #       'sub_name'      - Name of the Subreddit being scraped
     #       'storage_queue' - A queue holding data to be written to disk
+    #       'sub_name'      - The set of subreddits
     # /////////////////////////////////////////////////////////////////
-    def __init__(self, comment_queue, sub_name, storage_queue):
+    def __init__(self, comment_queue, storage_queue, subreddits):
         # Initialize class variables
-        self.sub_name = sub_name
         self.comment_queue = comment_queue
         self.storage_queue = storage_queue
+        self.subreddits = subreddits
 
 
     # /////////////////////////////////////////////////////////////////
@@ -35,24 +37,20 @@ class Queue_Reader(Process_Wrapper):
     # /////////////////////////////////////////////////////////////////
     def reader_wrapper(self):
         self.PROCESS_ID = os.getpid()
-        print(f'{self.PROCESS_TYPE_NAME:6} {self.PROCESS_ID}\t| Comment Queue reader started on {self.sub_name}')
+        time.sleep(self.COOLDOWN_TIME)
+        self.thread_print(f'Comment Queue reader started.')
         
         # Run the reader script on a set schedule
         while True:
-            #start_time = datetime.datetime.now()
-            reader = mp.Process(target=self.comment_queue_reader)
-            reader.start()
-            reader.join()
+            if not self.comment_queue.empty():
+                with mp.Pool(processes=self.NUM_PROCESSES) as pool:
+                    reader = mp.Process(target=self.comment_queue_reader)
+                    reader.start()
+                    reader.join()
 
-            # Want to sleep for between 50 and 70 seconds
-            t = self.COOLDOWN_TIME + (random.random() * 20.0)
-            self.p(f'Sleeping for {t:.2f} seconds')
+            t = self.COOLDOWN_TIME + (random.random() * self.COOLDOWN_SPREAD)
+            self.thread_print(f'Sleeping for {t:.2f} seconds')
             time.sleep(t)
-        
-            #time_diff = start_time - datetime.datetime.now()
-            #sleep_time = (self.COOLDOWN_TIME - time_diff.seconds)
-            #print(f'SSR {self.process_id}\t| Waiting for {sleep_time} seconds.')
-            #time.sleep(sleep_time)
 
 
     # /////////////////////////////////////////////////////////////////
@@ -60,43 +58,59 @@ class Queue_Reader(Process_Wrapper):
     #   Purpose:    Collect live reddit comments and pass them to queue
     # /////////////////////////////////////////////////////////////////
     def comment_queue_reader(self):
-        if self.comment_queue.empty():
-            self.p(f'{self.sub_name}: no comments')
-            return
-
-        self.p(f'{self.sub_name}: {self.comment_queue.qsize()} total comments collected')
+        self.debug_print(f'{self.comment_queue.qsize()} total comments collected.')
         comments_processed = 0  # total comments processed
-        tickers = {'hot':{}, 'stream':{}} # dictionary of tickers (key: symbol, value: score)
+
+        # Layout of tickers:
+        # Dict
+        # {
+        #   key: 'hot' or 'stream' (str)
+        #   value: Dict
+        #       {
+        #           key: subreddit name (str)
+        #           value: Dict
+        #               {
+        #                   key: Ticker symbol
+        #                   value: Ticker score
+        #               }
+        #       }
+        # }
+        tickers = {'hot':{}, 'stream':{}}
+
+        for s in self.subreddits:
+            tickers['hot'][s] = {}
+            tickers['stream'][s] = {}
 
         # Pops all comments each hour until queue is empty
         while not self.comment_queue.empty():
             # Checks if there is a comment to get
-            # Comment Queue: Queue(Tuple(string, comment))
+            # Comment Queue: Queue(Tuple(string, string, comment))
             r_comment = self.comment_queue.get()
             
             comments_processed += 1
-            comment = Comment_Info(r_comment[1].body, -1, r_comment[1].score)
-            ticker_result = comment_score(comment)
+            comment = Comment_Info(r_comment[2].body, -1, r_comment[2].score)
+            ticker_results = comment_score(comment)
 
-            if ticker_result is not None:
-                ticker_type = r_comment[0]
+            if ticker_results is not None:
+                ticker_category = r_comment[0]
+                ticker_sub = r_comment[1]
+
                 # Pulls out metion data and comglomerates for each ticker
-                for new_ticker in ticker_result:
+                for new_ticker in ticker_results:
                     symbol = new_ticker.symbol
-                    if symbol in tickers[ticker_type]:
-                        tickers[ticker_type][symbol] = tickers[ticker_type][symbol] + new_ticker.score
+                    if symbol in tickers[ticker_category][ticker_sub]:
+                        tickers[ticker_category][ticker_sub][symbol] += new_ticker.score
                     else:
-                        tickers[ticker_type][symbol] = new_ticker.score
+                        tickers[ticker_category][ticker_sub][symbol] = new_ticker.score
         # End queue processing loop
 
-        # End Comment processing
-        for key in tickers:
-            if tickers[key] is not None:
-                # Sort the tickers into a list of tuples (symbol, score)
-                sorted_tickers = sorted(tickers[key].items(), key=lambda x:x[1], reverse=True)
+        # send comment data to the storage manager
+        for category, category_dict in tickers.items():
+            for sub_name, ticker_dict in category_dict.items():
+                if ticker_dict:
+                    ticker_list = []
+                    for ticker_symbol, ticker_score in ticker_dict.items():
+                        ticker_list.append(Ticker(symbol=ticker_symbol, score=ticker_score))
 
-                if len(sorted_tickers) != 0:
-                    self.p(f'Queue reader processed {comments_processed} {key} comments from {self.sub_name}, got {len(sorted_tickers)} ticker result(s)')
-                    data = (sorted_tickers, key, self.sub_name)
+                    data = (ticker_list, category, sub_name)
                     self.storage_queue.put(data)
-        

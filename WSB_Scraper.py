@@ -30,9 +30,9 @@ def signal_handler(sig, frame):
 # /////////////////////////////////////////////////////////////////
 def idle():
     print('Main: Idle')
-    signal.signal(signal.SIGINT, signal_handler)
+    #signal.signal(signal.SIGINT, signal_handler)
     while True:
-        time.sleep(10)
+        time.sleep(1000)
         # check parent queue messages
 
 
@@ -43,45 +43,35 @@ def idle():
 if __name__ == '__main__':
     procs = []
     # List of subreddit names
-    subreddits = [ 'wallstreetbets', 'investing', 'stocks', 'pennystocks' ]
+    subreddits = { 'wallstreetbets', 'investing', 'stocks', 'pennystocks' }
 
     # Run initialization TODO: Merge more into this
     initialize(subreddits)
-    mp.set_start_method('spawn')
+    mp.set_start_method('fork')
+    storage_queue = mp.Queue()
+    comment_queue = mp.Queue()
 
     # Start storage manager
-    storage_queue = mp.Queue() 
-    storage_manager = StorageManager(storage_queue)
-    procs.append(mp.Process(target=storage_manager.process_queue, name='storage-manager'))
-    
     # Start another thread to watch the storage queue
-    storage_watcher = Queue_Watcher(storage_queue, 'storage-queue')
-    procs.append(mp.Process(target=storage_watcher.periodic_check, name='storage-q-watcher'))
-    
-    # These are formed into a list of Tuples with the form (subreddit_name, stream_queue)
-    subreddit_list = []
+    storage_manager = StorageManager(data_queue=storage_queue)
+    storage_watcher = Queue_Watcher(queue=storage_queue, name='storage')
+    mp.Process(target=storage_manager.storage_manager, name='storage-manager').start()
+    mp.Process(target=storage_watcher.watch_queue, name='storage-queue-watcher').start()
 
-    for sub_name in subreddits:
-        empty_queue = mp.Queue()
-        subreddit_list.append((sub_name, empty_queue))
+    comment_queue_reader = Queue_Reader(comment_queue=comment_queue, storage_queue=storage_queue, subreddits=subreddits)
+    comment_queue_watcher   = Queue_Watcher(queue=comment_queue, name='comments')
+    mp.Process(target=comment_queue_reader.reader_wrapper, name='comment-queue-reader').start()
+    mp.Process(target=comment_queue_watcher.watch_queue, name='comment-queue-watcher').start()
 
     # Starting processes for stream_scraper_writer, scrape_hot_posts, and stream_scraper_reader
     # Each new sub needs one thread for each method
-    for sub in subreddit_list:
+    for sub in subreddits:
         # Create the wrapper objects for each thread
-        comment_queue_reader    = Queue_Reader(sub[1], sub[0], storage_queue)
-        stream_comment_manager  = Stream_Writer(sub[1], sub[0])
-        hot_comment_manager     = Hot_Writer(sub[1], sub[0])
-        comment_queue_watcher   = Queue_Watcher(sub[1], f'{sub[0]}-comments')
-
-        procs.append(mp.Process(target=comment_queue_reader.reader_wrapper, name=f'{sub[0]}-q-reader'))
-        procs.append(mp.Process(target=stream_comment_manager.writer_wrapper, name=f'{sub[0]}-stream-scraper'))
-        procs.append(mp.Process(target=hot_comment_manager.hot_wrapper, name=f'{sub[0]}-hot-scraper'))
-        procs.append(mp.Process(target=comment_queue_watcher.periodic_check, name=f'{sub[0]}-q-watcher'))
-
-    for proc in procs:
-        print(f'Main: Starting process {proc.name}')
-        proc.start()
+        hot_comment_writer     = Hot_Writer(comment_queue=comment_queue, sub_name=sub)
+        stream_comment_writer  = Stream_Writer(comment_queue=comment_queue, sub_name=sub)
+        
+        mp.Process(target=stream_comment_writer.writer_wrapper, name=f'{sub}-stream-scraper').start()
+        mp.Process(target=hot_comment_writer.hot_wrapper, name=f'{sub}-hot-scraper').start()
 
     # allow parent thread to idle
     idle()

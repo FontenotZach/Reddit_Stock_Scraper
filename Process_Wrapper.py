@@ -1,14 +1,14 @@
 class Process_Wrapper:
     DEBUG = True
-    PROCESS_ID = 0
-    PROCESS_TYPE_NAME = ''
+    PROCESS_ID = -1
+    PROCESS_TYPE_NAME = 'GEN'
+
+    sub_name = ''
 
     # Debug printer shared between all wrapped objects
-    def p(self, str):
+    def debug_print(self, str):
         if self.DEBUG:
-            print(f'{self.PROCESS_TYPE_NAME:6} {self.PROCESS_ID}\t| {str}')
+            self.thread_print(str)
 
-
-    #
-    def wait_random(self):
-        pass
+    def thread_print(self, str):
+        print(f'{self.PROCESS_TYPE_NAME[:5]:5} {self.PROCESS_ID:5} {self.sub_name[:5]:5} | {str}')
