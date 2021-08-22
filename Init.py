@@ -1,5 +1,6 @@
 import os
 import psycopg2 as psql
+import multiprocessing as mp
 
 from Util import get_sql_config
 
@@ -20,9 +21,9 @@ def p(s):
 #   Purpose: Initializes the program by ensuring proper folder layout exists
 # /////////////////////////////////////////////////////////////////
 def initialize(subreddits):
-
     test_db_connection(subreddits, get_sql_config())
     #test_file_permissions(subreddits)
+    mp.set_start_method('spawn')
     return
 
 
