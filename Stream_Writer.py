@@ -60,7 +60,7 @@ class Stream_Writer(Process_Wrapper):
 
         for r_comment in stream:
             if r_comment is not None:
-                self.comment_queue.put((self.COMMENT_TYPE, self.sub_name, r_comment))
+                self.comment_queue.put((self.COMMENT_TYPE, r_comment))
                 comments_scraped += 1
                 if comments_scraped % self.PRINT_FREQUENCY == 0:
                     self.debug_print(f'{comments_scraped} comments scraped from the {self.sub_name} stream')

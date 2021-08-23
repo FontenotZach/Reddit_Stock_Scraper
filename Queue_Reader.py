@@ -20,11 +20,11 @@ class Queue_Reader(Process_Wrapper):
     #       'storage_queue' - A queue holding data to be written to disk
     #       'sub_name'      - The set of subreddits
     # /////////////////////////////////////////////////////////////////
-    def __init__(self, comment_queue, storage_queue, subreddits):
+    def __init__(self, comment_queue, storage_queue, sub_name):
         # Initialize class variables
         self.comment_queue = comment_queue
         self.storage_queue = storage_queue
-        self.subreddits = subreddits
+        self.sub_name = sub_name
 
 
     # /////////////////////////////////////////////////////////////////
@@ -69,10 +69,6 @@ class Queue_Reader(Process_Wrapper):
         # }
         tickers = {'hot':{}, 'stream':{}}
 
-        for s in self.subreddits:
-            tickers['hot'][s] = {}
-            tickers['stream'][s] = {}
-
         # Pops all comments each hour until queue is empty
         while not self.comment_queue.empty():
             # Checks if there is a comment to get
@@ -80,31 +76,29 @@ class Queue_Reader(Process_Wrapper):
             r_comment = self.comment_queue.get(timeout=1)
             
             comments_processed += 1
-            comment = Comment_Info(r_comment[2].body, -1, r_comment[2].score)
+            comment = Comment_Info(r_comment[1].body, -1, r_comment[1].score)
             ticker_results = comment_score(comment)
 
             if ticker_results is not None:
                 ticker_category = r_comment[0]
-                ticker_sub = r_comment[1]
 
                 # Pulls out metion data and comglomerates for each ticker
                 for new_ticker in ticker_results:
                     symbol = new_ticker.symbol
-                    if symbol in tickers[ticker_category][ticker_sub]:
-                        tickers[ticker_category][ticker_sub][symbol] += new_ticker.score
+                    if symbol in tickers[ticker_category]:
+                        tickers[ticker_category][symbol] += new_ticker.score
                     else:
-                        tickers[ticker_category][ticker_sub][symbol] = new_ticker.score
+                        tickers[ticker_category][symbol] = new_ticker.score
         # End queue processing loop
 
         self.thread_print(f'Processed {comments_processed} comments.')
 
         # send comment data to the storage manager
-        for category, category_dict in tickers.items():
-            for sub_name, ticker_dict in category_dict.items():
-                if ticker_dict:
-                    ticker_list = []
-                    for ticker_symbol, ticker_score in ticker_dict.items():
-                        ticker_list.append(Ticker(symbol=ticker_symbol, score=ticker_score))
+        for category, ticker_dict in tickers.items():
+            if ticker_dict:
+                ticker_list = []
+                for ticker_symbol, ticker_score in ticker_dict.items():
+                    ticker_list.append(Ticker(symbol=ticker_symbol, score=ticker_score))
 
-                    data = (ticker_list, category, sub_name)
-                    self.storage_queue.put(data)
+                data = (ticker_list, category, self.sub_name)
+                self.storage_queue.put(data)
