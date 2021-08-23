@@ -23,7 +23,7 @@ def p(s):
 def initialize(subreddits):
     test_db_connection(subreddits, get_sql_config())
     #test_file_permissions(subreddits)
-    mp.set_start_method('spawn')
+    mp.set_start_method("fork")
     return
 
 
