@@ -1,10 +1,11 @@
 import os
 import psycopg2 as psql
+import multiprocessing as mp
 
 from Util import get_sql_config
 
 # Set this to True to print whenever a folder/file is tested
-debug = True
+debug = False
 
 # /////////////////////////////////////////////////////////////////
 #   Method: p
@@ -20,9 +21,9 @@ def p(s):
 #   Purpose: Initializes the program by ensuring proper folder layout exists
 # /////////////////////////////////////////////////////////////////
 def initialize(subreddits):
-
     test_db_connection(subreddits, get_sql_config())
     #test_file_permissions(subreddits)
+    mp.set_start_method("fork")
     return
 
 
@@ -75,7 +76,7 @@ def test_db_connection(subreddits, config):
 
         conn.commit()
     except Exception as e:
-        p(f'ERROR: {e}')
+        print(f'Init ERROR: {e}')
         exit(1)
     finally:
         if conn is not None:

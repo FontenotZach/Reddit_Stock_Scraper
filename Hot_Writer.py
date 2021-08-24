@@ -7,7 +7,7 @@ from Process_Wrapper import Process_Wrapper
 class Hot_Writer(Process_Wrapper):
     COOLDOWN_TIME = 3600    # Wait a full hour before scraping hot posts again
     SCRAPE_LIMIT = 30       # The number of top posts to scrape each hour
-    PRINT_FREQUENCY = 500   # Print something for every 500 comments scraped
+    PRINT_FREQUENCY = 100   # Print something for every 100 comments scraped
     COMMENT_TYPE = 'hot'
     PROCESS_TYPE_NAME = 'HOTW'
     
@@ -38,15 +38,15 @@ class Hot_Writer(Process_Wrapper):
     # /////////////////////////////////////////////////////////////////
     def hot_wrapper(self):
         self.PROCESS_ID = os.getpid()
-        
-        print(f'{self.PROCESS_TYPE_NAME:6} {self.PROCESS_ID}\t| {self.sub_name} hot post scraper started')
+        time.sleep(10)
+        self.thread_print(f'Hot post writer started.')
         
         while True:
             hot_scraper = mp.Process(target=self.scrape_hot_posts)
             hot_scraper.start()
             hot_scraper.join()
 
-            self.p(f'Sleeping for {self.COOLDOWN_TIME} seconds.')
+            self.debug_print(f'Sleeping for {self.COOLDOWN_TIME} seconds.')
             time.sleep(self.COOLDOWN_TIME)
 
     # /////////////////////////////////////////////////////////////////
@@ -57,7 +57,7 @@ class Hot_Writer(Process_Wrapper):
         comments_scraped = 0
 
         for submission in self.subreddit.hot(limit=self.SCRAPE_LIMIT):
-            self.p(f'Getting all comments from {self.sub_name} -> {submission.title[:30]}')
+            self.debug_print(f'Getting all comments from {self.sub_name} -> {submission.title[:30]}')
             
             # Get all comments for the post
             submission.comments.replace_more(limit=None)
@@ -66,5 +66,5 @@ class Hot_Writer(Process_Wrapper):
                 self.comment_queue.put((self.COMMENT_TYPE, r_comment))
                 comments_scraped += 1
                 if comments_scraped % self.PRINT_FREQUENCY == 0:
-                    self.p(f'{comments_scraped} comments scraped from the {self.sub_name} stream')
+                    self.debug_print(f'{comments_scraped} comments scraped from the hot posts of {self.sub_name}')
             

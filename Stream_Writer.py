@@ -5,8 +5,8 @@ import multiprocessing as mp
 from Process_Wrapper import Process_Wrapper
 
 class Stream_Writer(Process_Wrapper):
-    COOLDOWN_TIME = 5       # 5 second wait to let praw comment stream populate
-    PRINT_FREQUENCY = 500   # Print something for every 500 comments scraped
+    COOLDOWN_TIME = 10       # 10 second wait to let praw comment stream populate
+    PRINT_FREQUENCY = 100   # Print something for every 100 comments scraped
     COMMENT_TYPE = 'stream'
     PROCESS_TYPE_NAME = 'STRW'
 
@@ -36,15 +36,16 @@ class Stream_Writer(Process_Wrapper):
     # /////////////////////////////////////////////////////////////////
     def writer_wrapper(self):
         self.PROCESS_ID = os.getpid()
-        print(f'{self.PROCESS_TYPE_NAME:6} {self.PROCESS_ID}\t| {self.sub_name} stream writer started')
+        time.sleep(10)
+        self.thread_print(f'Stream writer started.')
 
         while True:
-            self.p(f'Scraping stream from {self.sub_name}') 
+            self.debug_print(f'Scraping stream from {self.sub_name}') 
             writer = mp.Process(target=self.stream_scraper_writer)
             writer.start()
             writer.join()
 
-            self.p(f'Sleeping for {self.COOLDOWN_TIME} seconds.')
+            self.debug_print(f'Done. Sleeping for {self.COOLDOWN_TIME} seconds.')
             time.sleep(self.COOLDOWN_TIME)
 
 
@@ -62,4 +63,4 @@ class Stream_Writer(Process_Wrapper):
                 self.comment_queue.put((self.COMMENT_TYPE, r_comment))
                 comments_scraped += 1
                 if comments_scraped % self.PRINT_FREQUENCY == 0:
-                    self.p(f'{comments_scraped} comments scraped from the {self.sub_name} stream')
+                    self.debug_print(f'{comments_scraped} comments scraped from the {self.sub_name} stream')

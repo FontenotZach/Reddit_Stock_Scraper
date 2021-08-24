@@ -1,9 +1,9 @@
-version: "3.8"
+version: "3"
 
 services:
   reddit_scraper:
     image: johnathanburns/reddit-scraper:latest
-    restart: unless-stopped
+    restart: always
     depends_on:
       - database
     environment:
