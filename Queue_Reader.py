@@ -9,7 +9,8 @@ from Comment_Info import *
 
 class Queue_Reader(Process_Wrapper):
     # ~30 Second wait period to let the queue fill up
-    COOLDOWN_TIME = 10
+    COOLDOWN_TIME = 60
+    VARIANCE = 10
     PROCESS_TYPE_NAME = 'QREAD'
 
     # /////////////////////////////////////////////////////////////////
@@ -42,7 +43,7 @@ class Queue_Reader(Process_Wrapper):
                 reader = mp.Process(target=self.comment_queue_reader)
                 reader.start()
                 reader.join()
-            time.sleep(self.COOLDOWN_TIME)
+            self.random_sleep(self.COOLDOWN_TIME, self.VARIANCE)
 
 
     # /////////////////////////////////////////////////////////////////
@@ -50,7 +51,7 @@ class Queue_Reader(Process_Wrapper):
     #   Purpose:    Collect live reddit comments and pass them to queue
     # /////////////////////////////////////////////////////////////////
     def comment_queue_reader(self):
-        self.debug_print(f'{self.comment_queue.qsize()} total comments collected.')
+        self.debug_print(f'{self.comment_queue.qsize()} {self.sub_name} comments collected.')
         comments_processed = 0  # total comments processed
 
         # Layout of tickers:
@@ -76,7 +77,7 @@ class Queue_Reader(Process_Wrapper):
             r_comment = self.comment_queue.get(timeout=1)
             
             comments_processed += 1
-            comment = Comment_Info(r_comment[1].body, -1, r_comment[1].score)
+            comment = Comment_Info(body=r_comment[1].body, score=r_comment[1].score, depth=-1)
             ticker_results = comment_score(comment)
 
             if ticker_results is not None:
@@ -92,6 +93,7 @@ class Queue_Reader(Process_Wrapper):
         # End queue processing loop
 
         self.thread_print(f'Processed {comments_processed} comments.')
+        num_results = 0
 
         # send comment data to the storage manager
         for category, ticker_dict in tickers.items():
@@ -102,3 +104,6 @@ class Queue_Reader(Process_Wrapper):
 
                 data = (ticker_list, category, self.sub_name)
                 self.storage_queue.put(data)
+                num_results += 1
+
+        self.thread_print(f'Put {num_results} ticker results onto the data queue.')
