@@ -24,9 +24,9 @@ Runs on most Linux distibutions
 
   1. To use the configuration stored in the file, run `source ./set-exports.sh` on *nix or `.\set-exports.ps1` in Powershell on Windows. (Note: if you get a permissions error on Windows, you likely need to enable custom scripts with the command `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Unrestricted -Force`. Note that this also allows all scripts downloaded from the internet to run, and so should be used with caution.)
   2. To verify, run `echo $PRAW_CLIENT_ID`. If your ID is printed to the screen, then the settings have been applied for this session.
-  3. To create and run the containers, use `# docker-compose up -d`
-  4. To stop and remove the containers, use `# docker-compose down`
-  5. ***OPTIONAL:*** To also remove the persistent SQL database, instead use `# docker-compose down --volumes` (WARNING: THIS WILL RESULT IN LOSS OF HISTORICAL TICKER DATA)
+  3. To create and run the containers, use `# docker-compose -f docker-compose-no-dev.yml up -d`
+  4. To stop and remove the containers, use `# docker-compose -f docker-compose-no-dev.yml down`
+  5. ***OPTIONAL:*** To also remove the persistent SQL database, instead use `# docker-compose -f docker-compose-no-dev.yml down --volumes` (WARNING: THIS WILL RESULT IN LOSS OF HISTORICAL TICKER DATA)
 
 ## Development:
   This program is written in Python, and thus requires Python v3.8 or greater to be installed. Additionally, there are several python dependencies required for proper operation.

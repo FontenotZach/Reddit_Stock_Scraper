@@ -70,14 +70,14 @@ class Queue_Reader(Process_Wrapper):
         while not self.comment_queue.empty():
             # Checks if there is a comment to get
             # Comment Queue: Queue(Tuple(string, string, comment))
-            r_comment = self.comment_queue.get(timeout=1)
+            reddit_comment_pair = self.comment_queue.get(timeout=1)
             
             comments_processed += 1
-            comment = Comment_Info(body=r_comment[1].body, score=r_comment[1].score, depth=-1)
+            comment = Comment_Info(body=reddit_comment_pair[1].body, score=reddit_comment_pair[1].score, depth=-1)
             ticker_results = comment_score(comment)
 
             if ticker_results is not None:
-                ticker_category = r_comment[0]
+                ticker_category = reddit_comment_pair[0]
 
                 # Pulls out metion data and comglomerates for each ticker
                 for new_ticker in ticker_results:

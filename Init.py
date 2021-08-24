@@ -43,7 +43,9 @@ def test_db_connection(subreddits, config):
 
     table_create = '''
     CREATE TABLE {} (
-    time_ticker_identifier VARCHAR(20) PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
+    time CHAR(13),
+    ticker VARCHAR(5),
     score FLOAT
     );
     '''
