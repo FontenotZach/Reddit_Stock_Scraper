@@ -60,12 +60,8 @@ class Queue_Reader(Process_Wrapper):
         #   key: 'hot' or 'stream' (str)
         #   value: Dict
         #       {
-        #           key: subreddit name (str)
-        #           value: Dict
-        #               {
-        #                   key: Ticker symbol
-        #                   value: Ticker score
-        #               }
+        #           key: Ticker symbol
+        #           value: Ticker score
         #       }
         # }
         tickers = {'hot':{}, 'stream':{}}
