@@ -5,7 +5,8 @@ import multiprocessing as mp
 from Process_Wrapper import Process_Wrapper
 
 class Hot_Writer(Process_Wrapper):
-    COOLDOWN_TIME = 3600    # Wait a full hour before scraping hot posts again
+    COOLDOWN_TIME = 1800    # Wait half an hour before scraping hot posts again
+    VARIANCE = 360          # With a good amount of variance thrown in as well
     SCRAPE_LIMIT = 30       # The number of top posts to scrape each hour
     PRINT_FREQUENCY = 100   # Print something for every 100 comments scraped
     COMMENT_TYPE = 'hot'
@@ -23,13 +24,7 @@ class Hot_Writer(Process_Wrapper):
         self.sub_name = sub_name
         self.comment_queue = comment_queue
         
-        # Each process that scrapes reddit needs its own instance of praw
-        self.reddit = praw.Reddit(
-            client_id = os.getenv('praw_client_id'),
-            client_secret = os.getenv('praw_client_secret'),
-            user_agent='Reddit Stock Scraper v0.5 by FontenotZ, JBurns',
-        )
-        self.subreddit = self.reddit.subreddit(self.sub_name)
+        
 
 
     # /////////////////////////////////////////////////////////////////
@@ -38,7 +33,13 @@ class Hot_Writer(Process_Wrapper):
     # /////////////////////////////////////////////////////////////////
     def hot_wrapper(self):
         self.PROCESS_ID = os.getpid()
-        time.sleep(10)
+        # Each process that scrapes reddit needs its own instance of praw
+        self.reddit = praw.Reddit(
+            client_id = os.getenv('praw_client_id'),
+            client_secret = os.getenv('praw_client_secret'),
+            user_agent='Reddit Stock Scraper v0.5 by FontenotZ, JBurns',
+        )
+        self.subreddit = self.reddit.subreddit(self.sub_name)
         self.thread_print(f'Hot post writer started.')
         
         while True:
@@ -46,8 +47,7 @@ class Hot_Writer(Process_Wrapper):
             hot_scraper.start()
             hot_scraper.join()
 
-            self.debug_print(f'Sleeping for {self.COOLDOWN_TIME} seconds.')
-            time.sleep(self.COOLDOWN_TIME)
+            self.random_sleep(self.COOLDOWN_TIME, self.VARIANCE)
 
     # /////////////////////////////////////////////////////////////////
     #   Method: scrape_hot_posts
@@ -56,15 +56,20 @@ class Hot_Writer(Process_Wrapper):
     def scrape_hot_posts(self):
         comments_scraped = 0
 
-        for submission in self.subreddit.hot(limit=self.SCRAPE_LIMIT):
-            self.debug_print(f'Getting all comments from {self.sub_name} -> {submission.title[:30]}')
-            
-            # Get all comments for the post
-            submission.comments.replace_more(limit=None)
-            
-            for r_comment in submission.comments:
-                self.comment_queue.put((self.COMMENT_TYPE, r_comment))
-                comments_scraped += 1
-                if comments_scraped % self.PRINT_FREQUENCY == 0:
-                    self.debug_print(f'{comments_scraped} comments scraped from the hot posts of {self.sub_name}')
+        try:
+            self.subreddit = self.reddit.subreddit(self.sub_name)
+            for submission in self.subreddit.hot(limit=self.SCRAPE_LIMIT):
+                self.debug_print(f'Getting all comments from {self.sub_name} -> {submission.title[:30]}')
+
+                # Get all comments for the post
+                submission.comments.replace_more(limit=None)
+
+                for r_comment in submission.comments:
+                    self.comment_queue.put((self.COMMENT_TYPE, r_comment))
+                    comments_scraped += 1
+                    if comments_scraped % self.PRINT_FREQUENCY == 0:
+                        self.debug_print(f'{comments_scraped} comments scraped from the hot posts of {self.sub_name}')
+        except Exception as e:
+            self.thread_print(f'Encountered exception {e}')
+            self.random_sleep(self.VARIANCE * 2, self.VARIANCE)
             
