@@ -1,4 +1,4 @@
-﻿# Reddit Stock Scraper
+﻿# Stock Scraper for Reddit
 Scrapes Reddit posts and streams new comments to track market trends.
 Runs on most Linux distibutions
 
