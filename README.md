@@ -27,7 +27,7 @@ Runs anywhere Docker is installed.
   3. To verify, run ```echo $PRAW_CLIENT_ID```. If your ID is printed to the screen, then the settings have been applied for this session.
   4. To create and run the containers, use ```docker-compose -f docker-compose-no-dev.yml up -d```
   5. To stop and remove the containers, use ```docker-compose -f docker-compose-no-dev.yml down```
-  6. ***OPTIONAL:*** To also remove the persistent SQL database, instead use `# docker-compose -f docker-compose-no-dev.yml down --volumes` (WARNING: THIS WILL RESULT IN LOSS OF HISTORICAL TICKER DATA)
+  6. ***OPTIONAL:*** To also remove the persistent SQL database, instead use ```docker-compose -f docker-compose-no-dev.yml down --volumes``` (WARNING: THIS WILL RESULT IN LOSS OF HISTORICAL TICKER DATA)
 
 ## Development:
   This program is written in Python, and thus requires Python v3.8 or greater to be installed. Additionally, there are several python dependencies required for proper operation.
